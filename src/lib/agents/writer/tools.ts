@@ -15,17 +15,19 @@ export function makeWriterTools(ctx: WriterRunContext) {
   return {
     selectBullets: tool({
       description:
-        "Selecciona y ordena los bullets del perfil para el CV, adaptando la redacción de cada uno al puesto. Los bulletId deben pertenecer al catálogo entregado por el prompt. No introducir hechos ausentes del perfil.",
+        "Select, order and SYNTHESIZE the profile bullets for the CV. The CV must fit on a single A4 page and read telegraphically — narrative belongs in the cover letter, not here. Budget by recency: current/most recent role gets 4-6 bullets up to ~16-18 words (strongest evidence); mid roles 2-3 bullets at ~10-14 words; older roles 0-2 bullets at ~8-12 words — drop older roles entirely if nothing speaks to the offer. Hard max 20 words per bullet, single visible PDF line. Structure: action verb + what + tech + quantified outcome. Cut 'enabling...' / 'establishing foundation for...' / 'so that...' tails and filler adjectives (scalable, robust, fluid, intuitive, seamless, etc.). Aim for ~10-14 bullets total; when over budget, cut from the oldest end first. BulletIds must belong to the catalog provided in the prompt. Do not introduce facts absent from the profile.",
       inputSchema: z.object({
         items: z
           .array(
             z.object({
               bulletId: z
                 .string()
-                .describe("ID del bullet del catálogo del perfil"),
+                .describe("ID of the bullet from the profile catalog"),
               renderedText: z
                 .string()
-                .describe("Redacción adaptada del bullet para este puesto"),
+                .describe(
+                  "Telegraphic CV line. Length follows recency: most recent role up to ~16-18 words, mid roles ~10-14, older roles ~8-12 (20 max anywhere). Single visible line, action verb + what + tech + quantified outcome. No narrative tails, no filler adjectives — those go in the cover letter.",
+                ),
             }),
           )
           .min(1),
@@ -43,7 +45,7 @@ export function makeWriterTools(ctx: WriterRunContext) {
             invalid: invalid.map((i) => i.bulletId),
           });
           return {
-            error: `BulletIds no válidos: ${invalid.map((i) => i.bulletId).join(", ")}. Solo puedes usar los IDs del catálogo.`,
+            error: `Invalid bulletIds: ${invalid.map((i) => i.bulletId).join(", ")}. You may only use IDs from the catalog.`,
           };
         }
         ctx.bullets = items;
@@ -54,7 +56,7 @@ export function makeWriterTools(ctx: WriterRunContext) {
 
     composeCoverLetter: tool({
       description:
-        "Redacta el cuerpo de la carta de presentación como array de párrafos. Cada párrafo apoya en hechos del perfil y de la oferta. No inventar experiencia.",
+        "Write the body of the cover letter as an array of paragraphs. Each paragraph must be grounded in facts from the profile and the offer. Do not invent experience.",
       inputSchema: z.object({
         paragraphs: z.array(z.string().min(1)).min(2).max(6),
       }),
@@ -74,18 +76,18 @@ export function makeWriterTools(ctx: WriterRunContext) {
 
     finalizeGeneration: tool({
       description:
-        "Finaliza la generación del CV y carta. Llamar solo después de selectBullets y composeCoverLetter.",
+        "Finalize the CV and cover letter generation. Only call after selectBullets and composeCoverLetter.",
       inputSchema: z.object({}),
       execute: async () => {
         log.info(MODULE, "finalizeGeneration begin");
         if (!ctx.bullets) {
           log.warn(MODULE, "finalizeGeneration: missing bullets");
-          return { error: "Debes llamar selectBullets antes de finalizar." };
+          return { error: "You must call selectBullets before finalizing." };
         }
         if (!ctx.coverParagraphs) {
           log.warn(MODULE, "finalizeGeneration: missing coverParagraphs");
           return {
-            error: "Debes llamar composeCoverLetter antes de finalizar.",
+            error: "You must call composeCoverLetter before finalizing.",
           };
         }
         ctx.finalized = true;

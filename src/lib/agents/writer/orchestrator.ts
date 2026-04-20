@@ -168,11 +168,11 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   const jobBulletMap = extractJobBulletMap(profileContent);
 
   // Build prompt
-  let prompt = `Adapta el CV y carta de presentación para este puesto.\n\n`;
+  let prompt = `Adapt the CV and cover letter for this position.\n\n`;
   const jobDescription = job.raw_snapshot || job.description_md;
-  prompt += `## Oferta\n${jobDescription}\n\n`;
-  prompt += `## Perfil del candidato\n${profileContent}\n\n`;
-  prompt += `## Catálogo de bullets disponibles (usa solo estos bulletIds)\n`;
+  prompt += `## Job offer\n${jobDescription}\n\n`;
+  prompt += `## Candidate profile\n${profileContent}\n\n`;
+  prompt += `## Available bullet catalog (use only these bulletIds)\n`;
   for (const b of bulletCatalog) {
     prompt += `- ${b.bulletId}: ${b.originalText}\n`;
   }
@@ -184,12 +184,12 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     if (parent) {
       const hasFeedback = parent.feedback_rating != null;
       log.info(MODULE, "parent loaded", { parentGenerationId, hasFeedback });
-      prompt += `\n## Generación anterior (como referencia para la iteración)\n`;
-      prompt += `Bullets seleccionados: ${parent.bullets_json}\n`;
-      prompt += `Cuerpo de carta: ${parent.cover_paragraphs_json}\n`;
+      prompt += `\n## Previous generation (as reference for this iteration)\n`;
+      prompt += `Selected bullets: ${parent.bullets_json}\n`;
+      prompt += `Cover letter body: ${parent.cover_paragraphs_json}\n`;
       if (feedbackRating) {
-        prompt += `\n## Feedback del usuario\nRating: ${feedbackRating}/5\n`;
-        if (feedbackComment) prompt += `Comentario: ${feedbackComment}\n`;
+        prompt += `\n## User feedback\nRating: ${feedbackRating}/5\n`;
+        if (feedbackComment) prompt += `Comment: ${feedbackComment}\n`;
       }
     }
   }

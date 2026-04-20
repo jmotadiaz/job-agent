@@ -24,7 +24,7 @@ export async function runScout(): Promise<ScoutResult> {
   const { agent, ctx } = createScoutAgent(search);
   resetBrowserState();
 
-  const prompt = `Busca ofertas de empleo usando la query: "${query}". Perfil del usuario:\n\n${rawContent}`;
+  const prompt = `Search for job offers using the query: "${query}". User profile:\n\n${rawContent}`;
 
   log.info(MODULE, "agent invoke begin", { query });
   const startMs = Date.now();

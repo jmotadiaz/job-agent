@@ -6,28 +6,28 @@ import type { SearchConfig } from "@/lib/profile/parse";
 
 export const SCOUT_MAX_CANDIDATES = 10;
 
-const INSTRUCTIONS = `Eres un agente especializado en búsqueda de empleo. Tu tarea es encontrar UNA oferta que encaje bien con el perfil del usuario en LinkedIn.
+const INSTRUCTIONS = `You are a specialized job-search agent. Your task is to find ONE job offer on LinkedIn that fits the user's profile well.
 
-## Flujo esperado
-1. Llama a \`openSearch\` con la query derivada del perfil para abrir los resultados de LinkedIn.
-2. Llama a \`listVisibleJobs\` para obtener las ofertas visibles (ya filtradas por las no vistas).
-3. Para cada candidato (máximo ${SCOUT_MAX_CANDIDATES} en total), **de uno en uno y en orden**:
-   a. Llama a \`fetchJobDetail\` con la URL de la oferta. Espera su respuesta antes de continuar.
-   b. Analiza el resumen recibido contra el perfil del usuario.
-   c. Si encaja bien: llama a \`saveCurrentJob\` con un score (0-1) y razón. La búsqueda termina.
-   d. Si no encaja: continúa con el siguiente candidato.
-4. Si revisaste todos los candidatos disponibles sin encontrar match: llama a \`noMatch\` explicando por qué.
+## Expected flow
+1. Call \`openSearch\` with the query derived from the profile to open LinkedIn's results page.
+2. Call \`listVisibleJobs\` to get the visible offers (already filtered to exclude ones previously seen).
+3. For each candidate (maximum ${SCOUT_MAX_CANDIDATES} in total), **one at a time and in order**:
+   a. Call \`fetchJobDetail\` with the job URL. Wait for its response before continuing.
+   b. Analyze the returned summary against the user's profile.
+   c. If it fits well: call \`saveCurrentJob\` with a score (0-1) and reason. The search ends.
+   d. If it does not fit: move on to the next candidate.
+4. If you reviewed all available candidates without finding a match: call \`noMatch\` explaining why.
 
-## Restricción crítica
-**Nunca llames a \`fetchJobDetail\` más de una vez por turno.** Procesa un job, evalúa su resumen, y solo entonces llama al siguiente. Llamar varios en paralelo consume el límite de candidatos sin poder evaluar los resultados.
+## Critical constraint
+**Never call \`fetchJobDetail\` more than once per turn.** Process one job, evaluate its summary, and only then move on to the next. Calling several in parallel burns the candidate budget without letting you evaluate the results.
 
-## Criterio de match
-Una oferta encaja si cumple mayoritariamente con las habilidades, nivel de experiencia y preferencias de ubicación/remoto del perfil. No busques la perfección — un buen match parcial vale más que ningún match.
+## Match criterion
+An offer fits if it broadly satisfies the profile's skills, seniority level, and location/remote preferences. Do not chase perfection — a solid partial match is worth more than no match at all.
 
-## Importante
-- Puedes rendirte con \`noMatch\` en cualquier momento si los candidatos son claramente inadecuados.
-- Siempre termina con \`saveCurrentJob\` o \`noMatch\` — nunca dejes la búsqueda sin resolución.
-- No inventes datos sobre las ofertas.`;
+## Important
+- You may give up with \`noMatch\` at any point if the candidates are clearly unsuitable.
+- Always end with \`saveCurrentJob\` or \`noMatch\` — never leave the search unresolved.
+- Do not invent data about the offers.`;
 
 export function createScoutAgent(search: SearchConfig) {
   const deepinfra = createDeepInfra({ apiKey: process.env.DEEPINFRA_API_KEY! });

@@ -63,9 +63,9 @@ export function makeScoutTools(ctx: ScoutRunContext) {
   return {
     openSearch: tool({
       description:
-        "Navega a la página pública de búsqueda de empleo de LinkedIn con la query dada y espera a que cargue.",
+        "Navigate to LinkedIn's public job search page with the given query and wait for it to load.",
       inputSchema: z.object({
-        query: z.string().describe("Términos de búsqueda de empleo"),
+        query: z.string().describe("Job search terms"),
       }),
       execute: async ({ query }) => {
         const url = buildLinkedInUrl(query, ctx.search);
@@ -163,7 +163,7 @@ export function makeScoutTools(ctx: ScoutRunContext) {
 
     listVisibleJobs: tool({
       description:
-        "Devuelve las ofertas visibles en la página de resultados, excluyendo las ya vistas. Cada entrada tiene external_id, url, title, company, location, snippet.",
+        "Return the offers visible on the results page, excluding those already seen. Each entry has external_id, url, title, company, location, snippet.",
       inputSchema: z.object({}),
       execute: async () => {
         const t0 = Date.now();
@@ -343,7 +343,7 @@ export function makeScoutTools(ctx: ScoutRunContext) {
 
     fetchJobDetail: tool({
       description:
-        "Navega al detalle de una oferta, extrae la descripción y devuelve un resumen en markdown de 6-10 bullets.",
+        "Navigate to the offer's detail page, extract the description, and return a markdown summary of 6-10 bullets.",
       inputSchema: z.object({
         url: z.string().url(),
       }),
@@ -536,16 +536,16 @@ ${rawText.slice(0, 8000)}`,
 
     saveCurrentJob: tool({
       description:
-        "Persiste la última oferta revisada como shortlisted con un score y razón. Solo llamar si la oferta encaja con el perfil.",
+        "Persist the most recently reviewed offer as shortlisted with a score and reason. Only call if the offer fits the profile.",
       inputSchema: z.object({
         score: z
           .number()
           .min(0)
           .max(1)
-          .describe("Puntuación de relevancia entre 0 y 1"),
+          .describe("Relevance score between 0 and 1"),
         reason: z
           .string()
-          .describe("Razón por la que esta oferta encaja con el perfil"),
+          .describe("Reason why this offer fits the profile"),
       }),
       execute: async ({ score, reason }) => {
         log.info(MODULE, "saveCurrentJob begin", {
@@ -555,7 +555,7 @@ ${rawText.slice(0, 8000)}`,
         if (!ctx.lastSummary) {
           log.warn(MODULE, "saveCurrentJob: no lastSummary available");
           return {
-            error: "No hay oferta reciente — llama primero a fetchJobDetail",
+            error: "No recent offer — call fetchJobDetail first",
           };
         }
         ctx.matchResult = { score, reason };
@@ -570,9 +570,9 @@ ${rawText.slice(0, 8000)}`,
 
     noMatch: tool({
       description:
-        "Finaliza la búsqueda sin persistir ninguna oferta. Llamar cuando ningún candidato encaja con el perfil.",
+        "End the search without persisting any offer. Call when no candidate fits the profile.",
       inputSchema: z.object({
-        reason: z.string().describe("Razón por la que ninguna oferta encajó"),
+        reason: z.string().describe("Reason why no offer fit"),
       }),
       execute: async ({ reason }) => {
         log.info(MODULE, "noMatch begin", { reason });
