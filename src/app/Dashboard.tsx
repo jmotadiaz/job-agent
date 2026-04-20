@@ -59,6 +59,23 @@ function buildTree(generations: Generation[]): GenerationNode[] {
   return roots;
 }
 
+function parseDescriptionField(md: string, field: string): string | null {
+  const m = md.match(new RegExp(`\\*\\*${field}\\*\\*:\\s*([^\\n]+)`));
+  if (!m) return null;
+  const v = m[1].trim();
+  return v === "Not specified" || v === "" ? null : v;
+}
+
+function jobSubtitle(job: Job): { company: string | null; location: string | null; salary: string | null } {
+  const isPrivacyText = /linkedin (respects|protects|protege)/i.test(job.company);
+  const company = isPrivacyText
+    ? parseDescriptionField(job.description_md, "Company")
+    : job.company || null;
+  const location = job.location || parseDescriptionField(job.description_md, "Location");
+  const salary = parseDescriptionField(job.description_md, "Salary");
+  return { company, location, salary };
+}
+
 function statusLabel(s: Job["status"]): string {
   return {
     new: "New",
@@ -599,15 +616,30 @@ function JobRow({
               fontSize: 13,
               color: "var(--text-secondary)",
               marginBottom: 8,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0 6px",
+              alignItems: "center",
             }}
           >
-            <span style={{ fontWeight: 500 }}>{job.company}</span>
-            {job.location && (
-              <span style={{ color: "var(--text-muted)" }}>
-                {" "}
-                · {job.location}
-              </span>
-            )}
+            {(() => {
+              const { company, location, salary } = jobSubtitle(job);
+              return (
+                <>
+                  {company && <span style={{ fontWeight: 500 }}>{company}</span>}
+                  {location && (
+                    <span style={{ color: "var(--text-muted)" }}>
+                      {company ? "· " : ""}{location}
+                    </span>
+                  )}
+                  {salary && (
+                    <span style={{ color: "var(--text-muted)" }}>
+                      · {salary}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
           </div>
           {scoreBar(job.match_score)}
           <p

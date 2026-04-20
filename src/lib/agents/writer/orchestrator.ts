@@ -45,34 +45,102 @@ function extractBulletCatalog(
 }
 
 function extractPersonalInfo(content: string) {
-  const get = (key: string) =>
-    content
-      .match(new RegExp(`${key}:\\s*(.+)`, "i"))?.[1]
-      ?.trim()
-      .replace(/^["']|["']$/g, "");
-  return {
-    name: get("name") ?? "Candidate",
-    email: get("email"),
-    phone: get("phone"),
-    location: get("location"),
-    linkedin: get("linkedin"),
-    website: get("website"),
-  };
+  // Parse "# Name - Job Title" heading
+  const headingMatch = content.match(/^#\s+(.+?)(?:\s+[-–]\s+(.+))?$/m);
+  const name = headingMatch?.[1]?.trim() ?? "Candidate";
+  const jobTitle = headingMatch?.[2]?.trim();
+
+  // Find first line containing | (contact line)
+  const contactLine = content.match(/^[^#\n].+\|.+$/m)?.[0] ?? "";
+  const parts = contactLine.split("|").map((p) => p.trim());
+
+  let email: string | undefined;
+  let phone: string | undefined;
+  let location: string | undefined;
+  let linkedin: string | undefined;
+  let website: string | undefined;
+
+  for (const part of parts) {
+    // Strip markdown link syntax, keep display text
+    const clean = part.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
+    if (clean.includes("@")) email = clean;
+    else if (/^\+?\d[\d\s()./-]{5,}/.test(clean)) phone = clean;
+    else if (/linkedin/i.test(clean)) linkedin = clean;
+    else if (/https?:\/\/|^www\./i.test(clean)) website = clean;
+    else if (clean && !location) location = clean;
+  }
+
+  return { name, jobTitle, email, phone, location, linkedin, website };
+}
+
+function extractJobBulletMap(content: string): Map<string, { jobTitle: string; company: string; period: string }> {
+  const map = new Map<string, { jobTitle: string; company: string; period: string }>();
+  const lines = content.split("\n");
+  let inExperience = false;
+  let currentJob: { jobTitle: string; company: string; period: string } | null = null;
+  let globalBulletIdx = 0;
+
+  for (const line of lines) {
+    if (/^## Experience/i.test(line)) { inExperience = true; continue; }
+    if (/^## /.test(line)) inExperience = false;
+
+    if (inExperience) {
+      // ### Company | Role | Period
+      const jobMatch = line.match(/^###\s+([^|]+)\|\s*([^|]+)\|\s*(.+)$/);
+      if (jobMatch) {
+        currentJob = {
+          company: jobMatch[1].trim(),
+          jobTitle: jobMatch[2].trim(),
+          period: jobMatch[3].trim(),
+        };
+      }
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      if (inExperience && currentJob) map.set(`b${globalBulletIdx}`, currentJob);
+      globalBulletIdx++;
+    }
+  }
+
+  return map;
+}
+
+function extractSkills(content: string) {
+  const section = content.match(/## Skills\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? "";
+  const categories: Array<{ label: string; items: string[] }> = [];
+  for (const line of section.split("\n")) {
+    // Match "- **Label**: item1, item2, ..."
+    const m = line.match(/^[-*]\s+\*\*([^*]+)\*\*:\s*(.+)/);
+    if (m) {
+      const items = m[2].split(/,\s*/).map((s) => s.replace(/\.$/, "").trim()).filter(Boolean);
+      categories.push({ label: m[1].trim(), items });
+    }
+  }
+  return categories;
 }
 
 function extractEducation(content: string) {
-  const edu: Array<{ institution: string; degree: string; period: string }> =
-    [];
-  const eduSection =
-    content.match(/## Education\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? "";
-  const blocks = eduSection.match(/###.+[\s\S]*?(?=\n###|\n##|$)/g) ?? [];
-  for (const block of blocks) {
-    const titleM = block.match(/###\s+(.+)\s+—\s+(.+)\s+\(([^)]+)\)/);
-    if (titleM) {
+  const edu: Array<{ institution: string; degree: string; period: string }> = [];
+  const section = content.match(/## Education\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? "";
+
+  for (const line of section.split("\n")) {
+    // Format: - **Degree** | Institution | period
+    const m = line.match(/^[-*]\s+\*\*([^*]+)\*\*\s*\|\s*([^|]+)\|\s*(.+)$/);
+    if (m) {
       edu.push({
-        institution: titleM[1].trim(),
-        degree: titleM[2].trim(),
-        period: titleM[3].trim(),
+        degree: m[1].trim(),
+        institution: m[2].trim(),
+        period: m[3].trim(),
+      });
+      continue;
+    }
+    // Format: ### Institution | Role | period
+    const m2 = line.match(/^###\s+([^|]+)\|\s*([^|]+)\|\s*(.+)$/);
+    if (m2) {
+      edu.push({
+        institution: m2[1].trim(),
+        degree: m2[2].trim(),
+        period: m2[3].trim(),
       });
     }
   }
@@ -96,6 +164,8 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   const bulletCatalog = extractBulletCatalog(profileContent);
   const personalInfo = extractPersonalInfo(profileContent);
   const education = extractEducation(profileContent);
+  const skillCategories = extractSkills(profileContent);
+  const jobBulletMap = extractJobBulletMap(profileContent);
 
   // Build prompt
   let prompt = `Adapta el CV y carta de presentación para este puesto.\n\n`;
@@ -167,12 +237,18 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   const cvPath = path.join(outDir, "cv.pdf");
   const coverPath = path.join(outDir, "cover.pdf");
 
+  const enrichedBullets = ctx.bullets.map((b) => ({
+    ...b,
+    ...(jobBulletMap.get(b.bulletId) ?? {}),
+  }));
+
   // Render CV
   await renderToFile(
     React.createElement(CvTemplate, {
       ...personalInfo,
-      bullets: ctx.bullets,
+      bullets: enrichedBullets,
       education,
+      skillCategories,
     }) as React.ReactElement<DocumentProps>,
     cvPath,
   );

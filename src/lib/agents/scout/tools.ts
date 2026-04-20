@@ -469,6 +469,7 @@ export function makeScoutTools(ctx: ScoutRunContext) {
 **Primary tech** (required): [main languages, frameworks, tools explicitly required]
 **Secondary tech** (nice-to-have): [technologies listed as optional or bonus]
 **Key responsibilities**: [2-3 short phrases]
+**Salary**: [salary range or compensation if mentioned, otherwise "Not specified"]
 **Hard blockers**: [location restrictions, mandatory languages, specific niche tech with no alternative]
 
 Job description:

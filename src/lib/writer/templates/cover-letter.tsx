@@ -1,16 +1,75 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 
+const ACCENT = '#B8960C';
+const MUTED = '#888888';
+const DARK = '#1a1a1a';
+
 const styles = StyleSheet.create({
-  page: { padding: 60, fontFamily: 'Helvetica', fontSize: 11, color: '#222', lineHeight: 1.6 },
-  header: { marginBottom: 24 },
-  senderName: { fontSize: 14, fontFamily: 'Helvetica-Bold', marginBottom: 2 },
-  senderContact: { fontSize: 9, color: '#555' },
-  date: { fontSize: 10, color: '#555', marginBottom: 16, marginTop: 16 },
-  salutation: { marginBottom: 12, fontFamily: 'Helvetica-Bold' },
-  paragraph: { marginBottom: 10, fontSize: 11, lineHeight: 1.6 },
-  closing: { marginTop: 20, marginBottom: 4 },
-  signature: { fontFamily: 'Helvetica-Bold' },
+  page: {
+    fontFamily: 'Helvetica',
+    fontSize: 10,
+    color: DARK,
+    backgroundColor: '#ffffff',
+    paddingTop: 48,
+    paddingBottom: 48,
+    paddingLeft: 56,
+    paddingRight: 56,
+  },
+  header: {
+    marginBottom: 32,
+  },
+  name: {
+    fontSize: 22,
+    fontFamily: 'Helvetica-Bold',
+    color: DARK,
+    marginBottom: 3,
+  },
+  jobTitleText: {
+    fontSize: 11,
+    color: '#444444',
+    marginBottom: 2,
+  },
+  contactItem: {
+    fontSize: 9,
+    color: MUTED,
+    marginBottom: 3,
+  },
+  date: {
+    fontSize: 9,
+    color: MUTED,
+    marginBottom: 20,
+  },
+  subject: {
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    color: ACCENT,
+    marginBottom: 16,
+  },
+  salutation: {
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 14,
+  },
+  paragraph: {
+    fontSize: 10,
+    lineHeight: 1.6,
+    marginBottom: 12,
+    color: '#333333',
+  },
+  closing: {
+    fontSize: 10,
+    marginTop: 20,
+    marginBottom: 6,
+  },
+  signature: {
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+  },
+  divider: {
+    borderBottom: '0.5pt solid #dddddd',
+    marginBottom: 24,
+  },
 });
 
 export interface CoverLetterTemplateProps {
@@ -32,7 +91,7 @@ export function CoverLetterTemplate({
   paragraphs,
   date,
 }: CoverLetterTemplateProps) {
-  const contacts = [senderEmail, senderPhone].filter(Boolean);
+  const contacts = [senderEmail, senderPhone].filter(Boolean) as string[];
   const salutation = companyName ? `Dear ${companyName} Hiring Team,` : 'Dear Hiring Team,';
   const subject = jobTitle ? `Re: ${jobTitle}` : undefined;
   const dateStr = date ?? new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -40,16 +99,20 @@ export function CoverLetterTemplate({
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.senderName}>{senderName}</Text>
-          {contacts.length > 0 && (
-            <Text style={styles.senderContact}>{contacts.join('  ·  ')}</Text>
-          )}
+          <Text style={styles.name}>{senderName}</Text>
+          {jobTitle && <Text style={styles.jobTitleText}>{jobTitle}</Text>}
+          {contacts.map((c, i) => (
+            <Text key={i} style={styles.contactItem}>{c}</Text>
+          ))}
         </View>
+
+        <View style={styles.divider} />
 
         <Text style={styles.date}>{dateStr}</Text>
 
-        {subject && <Text style={{ ...styles.paragraph, fontFamily: 'Helvetica-Bold', marginBottom: 12 }}>{subject}</Text>}
+        {subject && <Text style={styles.subject}>{subject}</Text>}
 
         <Text style={styles.salutation}>{salutation}</Text>
 
