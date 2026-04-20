@@ -18,9 +18,20 @@ import type { SearchConfig } from "@/lib/profile/parse";
 
 const LINKEDIN_SEARCH_BASE = "https://www.linkedin.com/jobs/search/";
 
+// LinkedIn geoId codes for country-level filtering (text-only location is unreliable)
+const GEO_IDS: Record<string, string> = {
+  spain: "105646813",
+  españa: "105646813",
+  es: "105646813",
+};
+
 function buildLinkedInUrl(query: string, search: SearchConfig): string {
   const params = new URLSearchParams({ keywords: query });
-  if (search.location) params.set("location", search.location);
+  if (search.location) {
+    params.set("location", search.location);
+    const geoId = GEO_IDS[search.location.toLowerCase().trim()];
+    if (geoId) params.set("geoId", geoId);
+  }
   if (search.remote) params.set("f_WT", "2");
   if (search.experience_level) {
     // LinkedIn f_E codes: 1:Internship, 2:Entry, 3:Associate, 4:Mid-Senior, 5:Director, 6:Executive
