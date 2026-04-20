@@ -1,21 +1,21 @@
-import React from 'react';
-import { nanoid } from 'nanoid';
-import fs from 'node:fs';
-import path from 'node:path';
-import { renderToFile, type DocumentProps } from '@react-pdf/renderer';
-import { loadProfile, PROFILE_PATH } from '@/lib/profile/load';
-import { parseProfile } from '@/lib/profile/parse';
-import { hashProfile } from '@/lib/profile/hash';
-import { getJobById } from '@/lib/db/jobs';
-import { insertGeneration, getGenerationById } from '@/lib/db/generations';
-import { CvTemplate } from '@/lib/writer/templates/cv';
-import { CoverLetterTemplate } from '@/lib/writer/templates/cover-letter';
-import { createWriterAgent } from './agent';
-import { log } from '@/lib/log';
-import type { WriterRunContext } from './tools';
+import React from "react";
+import { nanoid } from "nanoid";
+import fs from "node:fs";
+import path from "node:path";
+import { renderToFile, type DocumentProps } from "@react-pdf/renderer";
+import { loadProfile, PROFILE_PATH } from "@/lib/profile/load";
+import { parseProfile } from "@/lib/profile/parse";
+import { hashProfile } from "@/lib/profile/hash";
+import { getJobById } from "@/lib/db/jobs";
+import { insertGeneration, getGenerationById } from "@/lib/db/generations";
+import { CvTemplate } from "@/lib/writer/templates/cv";
+import { CoverLetterTemplate } from "@/lib/writer/templates/cover-letter";
+import { createWriterAgent } from "./agent";
+import { log } from "@/lib/utils/log";
+import type { WriterRunContext } from "./tools";
 
-const OUTPUT_BASE = path.join(process.cwd(), 'generated-pdfs');
-const MODULE = 'writer/orchestrator';
+const OUTPUT_BASE = path.join(process.cwd(), "generated-pdfs");
+const MODULE = "writer/orchestrator";
 
 export interface WriterInput {
   jobId: string;
@@ -24,13 +24,15 @@ export interface WriterInput {
   feedbackComment?: string | null;
 }
 
-export type WriterOutput = 
-  | { kind: 'success'; generationId: string; cvUrl: string; coverUrl: string }
-  | { kind: 'error'; message: string };
+export type WriterOutput =
+  | { kind: "success"; generationId: string; cvUrl: string; coverUrl: string }
+  | { kind: "error"; message: string };
 
-function extractBulletCatalog(profileContent: string): Array<{ bulletId: string; originalText: string }> {
+function extractBulletCatalog(
+  profileContent: string,
+): Array<{ bulletId: string; originalText: string }> {
   const catalog: Array<{ bulletId: string; originalText: string }> = [];
-  const lines = profileContent.split('\n');
+  const lines = profileContent.split("\n");
   let bulletIdx = 0;
   for (const line of lines) {
     const m = line.match(/^[-*]\s+(.+)/);
@@ -44,25 +46,34 @@ function extractBulletCatalog(profileContent: string): Array<{ bulletId: string;
 
 function extractPersonalInfo(content: string) {
   const get = (key: string) =>
-    content.match(new RegExp(`${key}:\\s*(.+)`, 'i'))?.[1]?.trim().replace(/^["']|["']$/g, '');
+    content
+      .match(new RegExp(`${key}:\\s*(.+)`, "i"))?.[1]
+      ?.trim()
+      .replace(/^["']|["']$/g, "");
   return {
-    name: get('name') ?? 'Candidate',
-    email: get('email'),
-    phone: get('phone'),
-    location: get('location'),
-    linkedin: get('linkedin'),
-    website: get('website'),
+    name: get("name") ?? "Candidate",
+    email: get("email"),
+    phone: get("phone"),
+    location: get("location"),
+    linkedin: get("linkedin"),
+    website: get("website"),
   };
 }
 
 function extractEducation(content: string) {
-  const edu: Array<{ institution: string; degree: string; period: string }> = [];
-  const eduSection = content.match(/## Education\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? '';
+  const edu: Array<{ institution: string; degree: string; period: string }> =
+    [];
+  const eduSection =
+    content.match(/## Education\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? "";
   const blocks = eduSection.match(/###.+[\s\S]*?(?=\n###|\n##|$)/g) ?? [];
   for (const block of blocks) {
     const titleM = block.match(/###\s+(.+)\s+—\s+(.+)\s+\(([^)]+)\)/);
     if (titleM) {
-      edu.push({ institution: titleM[1].trim(), degree: titleM[2].trim(), period: titleM[3].trim() });
+      edu.push({
+        institution: titleM[1].trim(),
+        degree: titleM[2].trim(),
+        period: titleM[3].trim(),
+      });
     }
   }
   return edu;
@@ -72,11 +83,15 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   const { jobId, parentGenerationId, feedbackRating, feedbackComment } = input;
 
   const job = getJobById(jobId);
-  if (!job) throw Object.assign(new Error(`Job ${jobId} not found`), { status: 404 });
+  if (!job)
+    throw Object.assign(new Error(`Job ${jobId} not found`), { status: 404 });
 
   const profileContent = loadProfile();
   const profileHash = hashProfile(profileContent);
-  log.info(MODULE, 'profile loaded', { hash: profileHash, length: profileContent.length });
+  log.info(MODULE, "profile loaded", {
+    hash: profileHash,
+    length: profileContent.length,
+  });
 
   const bulletCatalog = extractBulletCatalog(profileContent);
   const personalInfo = extractPersonalInfo(profileContent);
@@ -98,7 +113,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     const parent = getGenerationById(parentGenerationId);
     if (parent) {
       const hasFeedback = parent.feedback_rating != null;
-      log.info(MODULE, 'parent loaded', { parentGenerationId, hasFeedback });
+      log.info(MODULE, "parent loaded", { parentGenerationId, hasFeedback });
       prompt += `\n## Generación anterior (como referencia para la iteración)\n`;
       prompt += `Bullets seleccionados: ${parent.bullets_json}\n`;
       prompt += `Cuerpo de carta: ${parent.cover_paragraphs_json}\n`;
@@ -109,14 +124,18 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     }
   }
 
-  const mode = isIteration ? 'iteration' : 'initial';
-  log.info(MODULE, 'agent invoke begin', { mode, jobId, bulletCount: bulletCatalog.length });
+  const mode = isIteration ? "iteration" : "initial";
+  log.info(MODULE, "agent invoke begin", {
+    mode,
+    jobId,
+    bulletCount: bulletCatalog.length,
+  });
 
   const ctx: WriterRunContext = {
     bullets: null,
     coverParagraphs: null,
     finalized: false,
-    availableBulletIds: new Set(bulletCatalog.map(b => b.bulletId)),
+    availableBulletIds: new Set(bulletCatalog.map((b) => b.bulletId)),
   };
 
   try {
@@ -126,27 +145,27 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     const agentDuration = Date.now() - agentT0;
 
     if (!ctx.bullets || !ctx.coverParagraphs) {
-      throw new Error('Writer agent did not produce bullets and cover letter');
+      throw new Error("Writer agent did not produce bullets and cover letter");
     }
 
-    const coverLen = ctx.coverParagraphs.join('\n').length;
-    log.info(MODULE, 'agent result', {
+    const coverLen = ctx.coverParagraphs.join("\n").length;
+    log.info(MODULE, "agent result", {
       mode,
       bulletCount: ctx.bullets.length,
       coverLen,
       duration: agentDuration,
     });
   } catch (err: any) {
-    log.error(MODULE, 'agent failure', { error: err.message });
-    return { kind: 'error', message: err.message };
+    log.error(MODULE, "agent failure", { error: err.message });
+    return { kind: "error", message: err.message };
   }
 
   const generationId = nanoid();
   const outDir = path.join(OUTPUT_BASE, jobId, generationId);
   fs.mkdirSync(outDir, { recursive: true });
 
-  const cvPath = path.join(outDir, 'cv.pdf');
-  const coverPath = path.join(outDir, 'cover.pdf');
+  const cvPath = path.join(outDir, "cv.pdf");
+  const coverPath = path.join(outDir, "cover.pdf");
 
   // Render CV
   await renderToFile(
@@ -172,7 +191,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
 
   const cvSize = fs.statSync(cvPath).size;
   const coverSize = fs.statSync(coverPath).size;
-  log.info(MODULE, 'pdf rendered', { cvPath, coverPath, cvSize, coverSize });
+  log.info(MODULE, "pdf rendered", { cvPath, coverPath, cvSize, coverSize });
 
   insertGeneration({
     id: generationId,
@@ -187,14 +206,14 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     feedback_comment: feedbackComment ?? null,
   });
 
-  log.info(MODULE, 'persist', {
+  log.info(MODULE, "persist", {
     generationId,
     jobId,
     parent: parentGenerationId ?? null,
   });
 
   return {
-    kind: 'success',
+    kind: "success",
     generationId,
     cvUrl: `/api/generations/${generationId}/cv`,
     coverUrl: `/api/generations/${generationId}/cover`,

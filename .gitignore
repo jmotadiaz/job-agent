@@ -48,3 +48,4 @@ generated-pdfs/
 
 # Scout debug snapshots
 scout-snapshots/
+/log/

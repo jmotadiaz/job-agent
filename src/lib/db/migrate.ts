@@ -1,8 +1,8 @@
-import { getDb } from './client';
-import { log } from '@/lib/log';
+import { getDb } from "./client";
+import { log } from "@/lib/utils/log";
 
 export function migrate(): void {
-  log.info('db', 'migrate begin');
+  log.info("db", "migrate begin");
   const db = getDb();
 
   db.exec(`
@@ -38,5 +38,5 @@ export function migrate(): void {
     );
   `);
 
-  log.info('db', 'migrate end', { tables: ['jobs', 'generations'] });
+  log.info("db", "migrate end", { tables: ["jobs", "generations"] });
 }
