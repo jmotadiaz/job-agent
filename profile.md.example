@@ -1,0 +1,53 @@
+# Profile
+
+<!-- Tu perfil profesional. Copia este fichero como profile.md y rellena cada sección.
+     profile.md está en .gitignore — nunca se commitea. -->
+
+## Personal
+
+<!-- name: Tu Nombre
+     email: tu@email.com
+     location: Ciudad, País
+     linkedin: https://linkedin.com/in/tu-perfil
+     website: https://tuwebsite.com -->
+
+## Summary
+
+<!-- Párrafo de 3-5 líneas describiendo tu perfil profesional.
+     El Writer lo usará como base para la carta de presentación. -->
+
+## Experience
+
+<!-- ### Empresa — Título (mes año – mes año)
+     - Bullet 1: logro concreto con impacto cuantificable
+     - Bullet 2: tecnologías usadas y contexto
+     - Bullet 3: responsabilidades clave
+
+     Repite para cada posición relevante. -->
+
+## Skills
+
+<!-- ### Languages
+     - TypeScript, Python, Go, ...
+
+     ### Frameworks & Tools
+     - React, Next.js, Node.js, ...
+
+     ### Cloud & Infrastructure
+     - AWS, Docker, Kubernetes, ... -->
+
+## Education
+
+<!-- ### Universidad — Título (año – año) -->
+
+## search
+
+<!-- Configuración de búsqueda para el Scout.
+     El agente leerá esta sección para construir las queries de LinkedIn. -->
+
+query: "software engineer"
+location: "Madrid, Spain"
+remote: true
+# filters opcionales:
+# experience_level: mid  # entry, mid, senior
+# job_type: full-time    # full-time, part-time, contract
