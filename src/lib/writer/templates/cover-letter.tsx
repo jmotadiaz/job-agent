@@ -1,81 +1,117 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import path from 'path';
+import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 
-const ACCENT = '#B8960C';
-const MUTED = '#888888';
-const DARK = '#1a1a1a';
+// Disable hyphenation to prevent splitting words
+Font.registerHyphenationCallback((word) => [word]);
+
+const fontsDir = path.join(process.cwd(), "src/lib/writer/templates/fonts");
+
+// Register Montserrat font using local files to avoid network issues
+Font.register({
+  family: 'Montserrat',
+  fonts: [
+    { src: path.join(fontsDir, "montserrat-v31-latin-regular.ttf") },
+    { src: path.join(fontsDir, "montserrat-v31-latin-700.ttf"), fontWeight: 700 },
+  ],
+});
+
+const MUTED = "#555555";
+const PRIMARY = "#000000";
+const SECONDARY = "#333333";
+const DIVIDER = "#cccbc8";
 
 const styles = StyleSheet.create({
   page: {
-    fontFamily: 'Helvetica',
+    fontFamily: "Montserrat",
     fontSize: 10,
-    color: DARK,
-    backgroundColor: '#ffffff',
-    paddingTop: 48,
-    paddingBottom: 48,
-    paddingLeft: 56,
-    paddingRight: 56,
+    color: PRIMARY,
+    backgroundColor: "#f0ede9",
+    paddingTop: 60,
+    paddingBottom: 60,
+    paddingLeft: 50,
+    paddingRight: 50,
   },
   header: {
-    marginBottom: 32,
+    marginBottom: 0,
   },
   name: {
-    fontSize: 22,
-    fontFamily: 'Helvetica-Bold',
-    color: DARK,
-    marginBottom: 3,
+    fontSize: 32,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+    marginBottom: 8,
   },
   jobTitleText: {
-    fontSize: 11,
-    color: '#444444',
-    marginBottom: 2,
+    fontSize: 12,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    marginBottom: 40,
   },
-  contactItem: {
-    fontSize: 9,
-    color: MUTED,
-    marginBottom: 3,
+  divider: {
+    borderBottom: "0.5pt solid " + DIVIDER,
+    marginBottom: 40,
   },
   date: {
     fontSize: 9,
-    color: MUTED,
-    marginBottom: 20,
-  },
-  subject: {
-    fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
-    color: ACCENT,
-    marginBottom: 16,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+    marginBottom: 30,
   },
   salutation: {
     fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
-    marginBottom: 14,
+    fontFamily: "Montserrat",
+    marginBottom: 15,
+    color: PRIMARY,
   },
   paragraph: {
     fontSize: 10,
     lineHeight: 1.6,
-    marginBottom: 12,
-    color: '#333333',
+    marginBottom: 15,
+    color: MUTED,
+    textAlign: "justify",
   },
   closing: {
     fontSize: 10,
     marginTop: 20,
-    marginBottom: 6,
+    marginBottom: 4,
+    color: PRIMARY,
   },
   signature: {
     fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
   },
-  divider: {
-    borderBottom: '0.5pt solid #dddddd',
-    marginBottom: 24,
+  footer: {
+    position: "absolute",
+    bottom: 50,
+    left: 50,
+    right: 50,
   },
+  contactItem: {
+    fontSize: 9,
+    color: MUTED,
+    marginBottom: 4,
+  },
+  thanks: {
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    marginTop: 10,
+    color: PRIMARY,
+  }
 });
 
 export interface CoverLetterTemplateProps {
   senderName: string;
   senderEmail?: string;
   senderPhone?: string;
+  senderLinkedin?: string;
   companyName?: string;
   jobTitle?: string;
   paragraphs: string[];
@@ -86,14 +122,14 @@ export function CoverLetterTemplate({
   senderName,
   senderEmail,
   senderPhone,
+  senderLinkedin,
   companyName,
   jobTitle,
   paragraphs,
   date,
 }: CoverLetterTemplateProps) {
-  const contacts = [senderEmail, senderPhone].filter(Boolean) as string[];
+  const contacts = [senderEmail, senderPhone, senderLinkedin].filter(Boolean) as string[];
   const salutation = companyName ? `Dear ${companyName} Hiring Team,` : 'Dear Hiring Team,';
-  const subject = jobTitle ? `Re: ${jobTitle}` : undefined;
   const dateStr = date ?? new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
@@ -103,25 +139,32 @@ export function CoverLetterTemplate({
         <View style={styles.header}>
           <Text style={styles.name}>{senderName}</Text>
           {jobTitle && <Text style={styles.jobTitleText}>{jobTitle}</Text>}
-          {contacts.map((c, i) => (
-            <Text key={i} style={styles.contactItem}>{c}</Text>
-          ))}
         </View>
 
         <View style={styles.divider} />
 
-        <Text style={styles.date}>{dateStr}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.date}>{dateStr}</Text>
 
-        {subject && <Text style={styles.subject}>{subject}</Text>}
+          <Text style={styles.salutation}>{salutation}</Text>
 
-        <Text style={styles.salutation}>{salutation}</Text>
+          {paragraphs.map((p, i) => (
+            <Text key={i} style={styles.paragraph}>{p}</Text>
+          ))}
 
-        {paragraphs.map((p, i) => (
-          <Text key={i} style={styles.paragraph}>{p}</Text>
-        ))}
+          <View style={{ marginTop: 25 }}>
+            <Text style={styles.closing}>Warm regards,</Text>
+            <Text style={styles.signature}>{senderName}</Text>
+          </View>
+        </View>
 
-        <Text style={styles.closing}>Yours sincerely,</Text>
-        <Text style={styles.signature}>{senderName}</Text>
+        {/* Footer */}
+        <View style={styles.footer}>
+          {contacts.map((c, i) => (
+            <Text key={i} style={styles.contactItem}>{c}</Text>
+          ))}
+          <Text style={styles.thanks}>Thanks again for your time.</Text>
+        </View>
       </Page>
     </Document>
   );

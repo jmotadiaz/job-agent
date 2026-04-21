@@ -1,111 +1,176 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import path from "path";
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+  Font,
+} from "@react-pdf/renderer";
+
+// Disable hyphenation to prevent splitting words (e.g., ENGI-NEER)
+Font.registerHyphenationCallback((word) => [word]);
+
+const fontsDir = path.join(process.cwd(), "src/lib/writer/templates/fonts");
+
+// Register Montserrat font using local files to avoid network issues
+Font.register({
+  family: "Montserrat",
+  fonts: [
+    {
+      src: path.join(fontsDir, "montserrat-v31-latin-regular.ttf"),
+      fontWeight: 400,
+    },
+    {
+      src: path.join(fontsDir, "montserrat-v31-latin-700.ttf"),
+      fontWeight: 700,
+    },
+  ],
+});
 
 const ACCENT = "#B8960C";
-const MUTED = "#888888";
-const PRIMARY = "#1a1a1a";
-const SECONDARY = "#666666";
+const MUTED = "#5b5b5b"; // Muted gray for descriptions
+const PRIMARY = "#000000"; // Black for headers and titles
+const SECONDARY = "#222222"; // Slightly softer black for subheaders
+const DIVIDER = "#d1d0cc"; // Light gray for lines
 
 const styles = StyleSheet.create({
   page: {
     flexDirection: "row",
-    fontFamily: "Helvetica",
+    fontFamily: "Montserrat",
     fontSize: 9,
     color: PRIMARY,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#f0ede9", // Cream background
   },
   leftCol: {
-    width: "58%",
-    paddingTop: 44,
-    paddingLeft: 44,
-    paddingRight: 22,
-    paddingBottom: 44,
+    width: "40%",
+    paddingTop: 55,
+    paddingLeft: 40,
+    paddingRight: 20,
+    paddingBottom: 40,
+    borderRight: "0.5pt solid " + DIVIDER,
   },
   rightCol: {
-    width: "42%",
-    paddingTop: 44,
-    paddingLeft: 22,
-    paddingRight: 36,
-    paddingBottom: 44,
+    width: "60%",
+    paddingTop: 55,
+    paddingLeft: 35,
+    paddingRight: 40,
+    paddingBottom: 40,
   },
   name: {
-    fontSize: 28,
-    fontFamily: "Helvetica-Bold",
+    fontSize: 30,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
     color: PRIMARY,
-    marginBottom: 4,
+    marginBottom: 10,
+    letterSpacing: -0.5,
   },
   jobTitleText: {
-    fontSize: 13,
-    color: SECONDARY,
-    marginBottom: 26,
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginBottom: 45,
   },
   sectionLabel: {
-    fontSize: 7,
-    letterSpacing: 2.5,
-    color: MUTED,
-    marginBottom: 14,
-    marginTop: 14,
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    letterSpacing: 2,
+    color: PRIMARY,
+    textTransform: "uppercase",
+    marginBottom: 20,
+    marginTop: 30,
+  },
+  sectionDivider: {
+    borderBottom: "0.5pt solid " + DIVIDER,
+    marginBottom: 15,
   },
   expBlock: {
-    marginBottom: 20,
-  },
-  expJobTitle: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    color: PRIMARY,
-    marginBottom: 8,
+    marginBottom: 30,
   },
   expCompany: {
-    fontSize: 9.5,
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
     color: PRIMARY,
-    marginBottom: 8,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  expHeaderWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  expJobTitle: {
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
   },
   expPeriod: {
-    fontSize: 8.5,
-    color: MUTED,
-    marginBottom: 5,
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+  },
+  expSeparator: {
+    marginHorizontal: 5,
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
   },
   expDescription: {
-    fontSize: 9.5,
-    lineHeight: 1.55,
-    color: PRIMARY,
-    marginBottom: 5,
+    fontSize: 9,
+    lineHeight: 1.6,
+    color: MUTED,
+    marginBottom: 6,
+    textAlign: "justify",
+  },
+  itemBullet: {
+    fontSize: 8,
+    color: MUTED,
+    marginRight: 4,
   },
   eduBlock: {
-    marginBottom: 12,
+    marginBottom: 18,
   },
-  eduDegree: {
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
+  eduPeriod: {
+    fontSize: 9,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
     color: PRIMARY,
     marginBottom: 2,
   },
   eduInstitution: {
-    fontSize: 9,
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
     color: PRIMARY,
     marginBottom: 2,
   },
-  eduPeriod: {
-    fontSize: 8.5,
+  eduDegree: {
+    fontSize: 9,
     color: MUTED,
   },
   contactItem: {
     fontSize: 9,
-    color: MUTED,
-    marginBottom: 5,
-  },
-  skillSectionHeader: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    color: ACCENT,
-    marginTop: 20,
-    marginBottom: 7,
+    color: SECONDARY,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
   },
   skillItem: {
     fontSize: 9,
+    fontFamily: "Montserrat",
     color: MUTED,
-    marginBottom: 4,
-    lineHeight: 1.35,
+    marginBottom: 5,
+    paddingLeft: 10,
+    lineHeight: 1.4,
   },
 });
 
@@ -204,26 +269,76 @@ export function CvTemplate({
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* LEFT COLUMN */}
+        {/* SIDEBAR (LEFT) */}
         <View style={styles.leftCol}>
           <Text style={styles.name}>{name}</Text>
           {jobTitle && <Text style={styles.jobTitleText}>{jobTitle}</Text>}
 
+          {/* Contact */}
+          <View style={{ marginBottom: 30 }}>
+            {contactItems.map((c, i) => (
+              <Text key={i} style={styles.contactItem}>
+                {c}
+              </Text>
+            ))}
+          </View>
+
+          {/* Education */}
+          {education.length > 0 && (
+            <View style={{ marginBottom: 20 }}>
+              <View style={styles.sectionDivider} />
+              <Text style={styles.sectionLabel}>EDUCATION</Text>
+              {education.map((e, i) => (
+                <View key={i} style={styles.eduBlock}>
+                  <Text style={styles.eduPeriod}>{e.period}</Text>
+                  <Text style={styles.eduInstitution}>{e.institution}</Text>
+                  <Text style={styles.eduDegree}>{e.degree}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Skills */}
+          {renderedCategories.length > 0 && (
+            <View>
+              <View style={styles.sectionDivider} />
+              {renderedCategories.map((cat, i) => (
+                <View key={i} style={{ marginBottom: 15 }}>
+                  <Text style={styles.sectionLabel}>{cat.label}</Text>
+                  {cat.items.map((item, j) => (
+                    <Text key={j} style={styles.skillItem}>
+                      • {item}
+                    </Text>
+                  ))}
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* MAIN (RIGHT) */}
+        <View style={styles.rightCol}>
           {/* Experience — grouped by job */}
           {(grouped.length > 0 || ungrouped.length > 0) && (
             <>
               <Text style={styles.sectionLabel}>EXPERIENCE</Text>
 
               {grouped.map((job, i) => (
-                <View key={i} style={styles.expBlock}>
-                  <Text style={styles.expJobTitle}>{job.jobTitle}</Text>
-                  <Text style={styles.expCompany}>{job.company}</Text>
-                  <Text style={styles.expPeriod}>{job.period}</Text>
-                  {job.descriptions.map((desc, j) => (
-                    <Text key={j} style={styles.expDescription}>
-                      {desc}
-                    </Text>
-                  ))}
+                <View key={i}>
+                  {i > 0 && <View style={styles.sectionDivider} />}
+                  <View style={styles.expBlock}>
+                    <Text style={styles.expCompany}>{job.company}</Text>
+                    <View style={styles.expHeaderWrapper}>
+                      <Text style={styles.expJobTitle}>{job.jobTitle}</Text>
+                      <Text style={styles.expSeparator}>|</Text>
+                      <Text style={styles.expPeriod}>{job.period}</Text>
+                    </View>
+                    {job.descriptions.map((desc, j) => (
+                      <Text key={j} style={styles.expDescription}>
+                        {desc}
+                      </Text>
+                    ))}
+                  </View>
                 </View>
               ))}
 
@@ -239,48 +354,6 @@ export function CvTemplate({
               )}
             </>
           )}
-
-          {/* Profile / Summary */}
-          {summary && (
-            <>
-              <Text style={styles.sectionLabel}>PROFILE</Text>
-              <Text style={styles.expDescription}>{summary}</Text>
-            </>
-          )}
-
-          {/* Education */}
-          {education.length > 0 && (
-            <>
-              <Text style={styles.sectionLabel}>EDUCATION</Text>
-              {education.map((e, i) => (
-                <View key={i} style={styles.eduBlock}>
-                  <Text style={styles.eduDegree}>{e.degree}</Text>
-                  <Text style={styles.eduInstitution}>{e.institution}</Text>
-                  <Text style={styles.eduPeriod}>{e.period}</Text>
-                </View>
-              ))}
-            </>
-          )}
-        </View>
-
-        {/* RIGHT COLUMN */}
-        <View style={styles.rightCol}>
-          {contactItems.map((c, i) => (
-            <Text key={i} style={styles.contactItem}>
-              {c}
-            </Text>
-          ))}
-
-          {renderedCategories.map((cat, i) => (
-            <View key={i}>
-              <Text style={styles.skillSectionHeader}>{cat.label}</Text>
-              {cat.items.map((item, j) => (
-                <Text key={j} style={styles.skillItem}>
-                  {item}
-                </Text>
-              ))}
-            </View>
-          ))}
         </View>
       </Page>
     </Document>

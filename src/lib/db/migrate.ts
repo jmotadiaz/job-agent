@@ -30,6 +30,7 @@ export function migrate(): void {
       cv_path TEXT NOT NULL,
       cover_path TEXT NOT NULL,
       bullets_json TEXT NOT NULL DEFAULT '[]',
+      skills_json TEXT NOT NULL DEFAULT '[]',
       cover_paragraphs_json TEXT NOT NULL DEFAULT '[]',
       created_at INTEGER NOT NULL,
       parent_generation_id TEXT NULL REFERENCES generations(id),
@@ -37,6 +38,17 @@ export function migrate(): void {
       feedback_comment TEXT NULL
     );
   `);
+
+  // Additive column migrations — safe to run on existing DBs
+  const columns = db
+    .prepare("PRAGMA table_info(generations)")
+    .all() as Array<{ name: string }>;
+  const colNames = new Set(columns.map((c) => c.name));
+
+  if (!colNames.has("skills_json")) {
+    db.exec(`ALTER TABLE generations ADD COLUMN skills_json TEXT NOT NULL DEFAULT '[]'`);
+    log.info("db", "migrate: added generations.skills_json");
+  }
 
   log.info("db", "migrate end", { tables: ["jobs", "generations"] });
 }

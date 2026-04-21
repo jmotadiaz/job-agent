@@ -487,6 +487,7 @@ function JobRow({
           cv_path: "",
           cover_path: "",
           bullets_json: "[]",
+          skills_json: "[]",
           cover_paragraphs_json: "[]",
           created_at: Date.now(),
           parent_generation_id: null,

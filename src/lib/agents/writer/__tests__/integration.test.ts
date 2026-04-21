@@ -80,6 +80,7 @@ describe('Writer integration (Orchestrator Test)', () => {
       ctx: {
         finalized: true,
         bullets: [{ bulletId: 'b0', renderedText: 'Adaptation' }],
+        skillItems: ['React', 'TypeScript'],
         coverParagraphs: ['P1', 'P2'],
       } as any,
     } as any);

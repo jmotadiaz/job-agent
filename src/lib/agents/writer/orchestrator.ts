@@ -177,6 +177,12 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     prompt += `- ${b.bulletId}: ${b.originalText}\n`;
   }
 
+  const flatSkills = skillCategories.flatMap((c) => c.items);
+  prompt += `\n## Available skills catalog (use only these exact strings)\n`;
+  for (const s of flatSkills) {
+    prompt += `- ${s}\n`;
+  }
+
   const isIteration = !!parentGenerationId;
 
   if (parentGenerationId) {
@@ -186,6 +192,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
       log.info(MODULE, "parent loaded", { parentGenerationId, hasFeedback });
       prompt += `\n## Previous generation (as reference for this iteration)\n`;
       prompt += `Selected bullets: ${parent.bullets_json}\n`;
+      prompt += `Selected skills: ${parent.skills_json ?? "none"}\n`;
       prompt += `Cover letter body: ${parent.cover_paragraphs_json}\n`;
       if (feedbackRating) {
         prompt += `\n## User feedback\nRating: ${feedbackRating}/5\n`;
@@ -203,9 +210,11 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
 
   const ctx: WriterRunContext = {
     bullets: null,
+    skillItems: null,
     coverParagraphs: null,
     finalized: false,
     availableBulletIds: new Set(bulletCatalog.map((b) => b.bulletId)),
+    availableSkills: skillCategories.flatMap((c) => c.items),
   };
 
   try {
@@ -214,8 +223,8 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     await agent.generate({ prompt });
     const agentDuration = Date.now() - agentT0;
 
-    if (!ctx.bullets || !ctx.coverParagraphs) {
-      throw new Error("Writer agent did not produce bullets and cover letter");
+    if (!ctx.bullets || !ctx.skillItems || !ctx.coverParagraphs) {
+      throw new Error("Writer agent did not produce bullets, skills, and cover letter");
     }
 
     const coverLen = ctx.coverParagraphs.join("\n").length;
@@ -225,9 +234,10 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
       coverLen,
       duration: agentDuration,
     });
-  } catch (err: any) {
-    log.error(MODULE, "agent failure", { error: err.message });
-    return { kind: "error", message: err.message };
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    log.error(MODULE, "agent failure", { error: error.message });
+    return { kind: "error", message: error.message };
   }
 
   const generationId = nanoid();
@@ -248,7 +258,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
       ...personalInfo,
       bullets: enrichedBullets,
       education,
-      skillCategories,
+      skillCategories: [{ label: "Skills", items: ctx.skillItems }],
     }) as React.ReactElement<DocumentProps>,
     cvPath,
   );
@@ -276,6 +286,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     cv_path: cvPath,
     cover_path: coverPath,
     bullets_json: JSON.stringify(ctx.bullets),
+    skills_json: JSON.stringify(ctx.skillItems),
     cover_paragraphs_json: JSON.stringify(ctx.coverParagraphs),
     parent_generation_id: parentGenerationId ?? null,
     feedback_rating: feedbackRating ?? null,
