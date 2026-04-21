@@ -16,6 +16,7 @@ import {
   Clock,
   Star,
   WandSparkles,
+  Link,
 } from "lucide-react";
 import type { Job } from "@/lib/db/jobs";
 import type { Generation } from "@/lib/db/generations";
@@ -227,7 +228,7 @@ function FeedbackForm({
         className="btn btn-ghost btn-sm mt-1.5"
         onClick={() => setExpanded(true)}
       >
-        <MessageSquare size={14} className="mr-1.5" />
+        <MessageSquare size={14} />
         Iterate with feedback
       </button>
     );
@@ -259,7 +260,7 @@ function FeedbackForm({
             </>
           ) : (
             <>
-              <Sparkles size={14} className="mr-1.5" /> Iterate
+              <Sparkles size={14} /> Iterate
             </>
           )}
         </button>
@@ -307,7 +308,7 @@ function GenerationNodeView({
         <div className="flex items-center gap-2 flex-wrap mb-1.5">
           {isLatest && (
             <span className="badge badge-accent">
-              <Zap size={10} className="mr-1" /> Latest
+              <Zap size={10} /> Latest
             </span>
           )}
           {isStale && (
@@ -315,7 +316,7 @@ function GenerationNodeView({
               className="badge badge-amber"
               title="Generated with an older version of profile.md"
             >
-              <AlertTriangle size={10} className="mr-1" /> Profile changed
+              <AlertTriangle size={10} /> Profile changed
             </span>
           )}
           {node.feedback_rating != null && (
@@ -345,7 +346,7 @@ function GenerationNodeView({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <FileText size={14} className="mr-1.5" /> Download CV
+            <FileText size={14} /> Download CV
           </a>
           <a
             className="btn btn-ghost btn-sm"
@@ -353,7 +354,7 @@ function GenerationNodeView({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Mail size={14} className="mr-1.5" /> Download Cover
+            <Mail size={14} /> Download Cover
           </a>
         </div>
 
@@ -616,7 +617,7 @@ function JobRow({
                 disabled={updatingStatus}
                 id={`apply-${job.id}`}
               >
-                <Check size={14} className="mr-1.5" /> Mark as Applied
+                <Check size={14} /> Mark as Applied
               </button>
               <button
                 className="btn btn-danger btn-sm"
@@ -624,7 +625,7 @@ function JobRow({
                 disabled={updatingStatus}
                 id={`discard-${job.id}`}
               >
-                <X size={14} className="mr-1.5" /> Discard
+                <X size={14} /> Discard
               </button>
             </div>
           )}
@@ -702,7 +703,7 @@ function ScoutButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
           </>
         ) : (
           <>
-            <Search size={18} className="mr-2" /> Scout LinkedIn
+            <Search size={18} /> Scout LinkedIn
           </>
         )}
       </button>
@@ -718,6 +719,71 @@ function ScoutButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
           {result.kind === "no_match" && `↩ No match: ${result.reason}`}
           {result.kind === "error" &&
             `✕ Error: ${(result as { message?: string }).message ?? result.reason}`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Add Job Button ───────────────────────────────────────────────────────────
+
+function AddJobButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
+  const [url, setUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleImport = useCallback(async () => {
+    if (!url.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/jobs/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Import failed");
+      onNewJob(data.job);
+      setUrl("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setLoading(false);
+    }
+  }, [url, onNewJob]);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-stretch gap-2">
+        <input
+          type="url"
+          placeholder="Paste job URL…"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleImport()}
+          disabled={loading}
+          style={{ width: 240, minWidth: 0 }}
+        />
+        <button
+          className="btn btn-primary flex-shrink-0"
+          onClick={handleImport}
+          disabled={loading || !url.trim()}
+        >
+          {loading ? (
+            <>
+              <span className="spinner" /> Importing…
+            </>
+          ) : (
+            <>
+              <Link size={14} /> Add from URL
+            </>
+          )}
+        </button>
+      </div>
+      {error && !loading && (
+        <div className="fade-in px-3 py-2 rounded text-[13px] bg-(--bg-raised) border border-(--border) text-(--red)">
+          ✕ {error}
         </div>
       )}
     </div>
@@ -796,7 +862,8 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
               Intelligence in Search
             </p>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-start gap-3 flex-wrap">
+            <AddJobButton onNewJob={handleNewJob} />
             <ScoutButton onNewJob={handleNewJob} />
           </div>
         </div>

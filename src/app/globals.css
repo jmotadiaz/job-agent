@@ -183,7 +183,7 @@ body::before {
 .fade-in { animation: fadeIn 0.2s ease-out both; }
 
 /* --- Form elements --- */
-textarea, input[type="text"] {
+textarea, input[type="text"], input[type="url"] {
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 2px;
@@ -195,9 +195,12 @@ textarea, input[type="text"] {
   width: 100%;
   transition: border-color 0.15s;
 }
-textarea:focus, input[type="text"]:focus {
+textarea:focus, input[type="text"]:focus, input[type="url"]:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--text-muted);
+}
+input[type="url"]::placeholder, input[type="text"]::placeholder {
+  color: var(--text-muted);
 }
 
 /* --- Star rating --- */
