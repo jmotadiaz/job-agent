@@ -1,21 +1,21 @@
-import React from 'react';
-import { nanoid } from 'nanoid';
-import fs from 'node:fs';
-import path from 'node:path';
-import { renderToFile, type DocumentProps } from '@react-pdf/renderer';
-import { loadProfile, PROFILE_PATH } from '@/lib/profile/load';
-import { parseProfile } from '@/lib/profile/parse';
-import { hashProfile } from '@/lib/profile/hash';
-import { getJobById } from '@/lib/db/jobs';
-import { insertGeneration, getGenerationById } from '@/lib/db/generations';
-import { CvTemplate } from '@/lib/writer/templates/cv';
-import { CoverLetterTemplate } from '@/lib/writer/templates/cover-letter';
-import { createWriterAgent } from './agent';
-import { log } from '@/lib/log';
-import type { WriterRunContext } from './tools';
+import React from "react";
+import { nanoid } from "nanoid";
+import fs from "node:fs";
+import path from "node:path";
+import { renderToFile, type DocumentProps } from "@react-pdf/renderer";
+import { loadProfile, PROFILE_PATH } from "@/lib/profile/load";
+import { parseProfile } from "@/lib/profile/parse";
+import { hashProfile } from "@/lib/profile/hash";
+import { getJobById } from "@/lib/db/jobs";
+import { insertGeneration, getGenerationById } from "@/lib/db/generations";
+import { CvTemplate } from "@/lib/writer/templates/cv";
+import { CoverLetterTemplate } from "@/lib/writer/templates/cover-letter";
+import { createWriterAgent } from "./agent";
+import { log } from "@/lib/utils/log";
+import type { WriterRunContext } from "./tools";
 
-const OUTPUT_BASE = path.join(process.cwd(), 'generated-pdfs');
-const MODULE = 'writer/orchestrator';
+const OUTPUT_BASE = path.join(process.cwd(), "generated-pdfs");
+const MODULE = "writer/orchestrator";
 
 export interface WriterInput {
   jobId: string;
@@ -24,13 +24,15 @@ export interface WriterInput {
   feedbackComment?: string | null;
 }
 
-export type WriterOutput = 
-  | { kind: 'success'; generationId: string; cvUrl: string; coverUrl: string }
-  | { kind: 'error'; message: string };
+export type WriterOutput =
+  | { kind: "success"; generationId: string; cvUrl: string; coverUrl: string }
+  | { kind: "error"; message: string };
 
-function extractBulletCatalog(profileContent: string): Array<{ bulletId: string; originalText: string }> {
+function extractBulletCatalog(
+  profileContent: string,
+): Array<{ bulletId: string; originalText: string }> {
   const catalog: Array<{ bulletId: string; originalText: string }> = [];
-  const lines = profileContent.split('\n');
+  const lines = profileContent.split("\n");
   let bulletIdx = 0;
   for (const line of lines) {
     const m = line.match(/^[-*]\s+(.+)/);
@@ -43,26 +45,103 @@ function extractBulletCatalog(profileContent: string): Array<{ bulletId: string;
 }
 
 function extractPersonalInfo(content: string) {
-  const get = (key: string) =>
-    content.match(new RegExp(`${key}:\\s*(.+)`, 'i'))?.[1]?.trim().replace(/^["']|["']$/g, '');
-  return {
-    name: get('name') ?? 'Candidate',
-    email: get('email'),
-    phone: get('phone'),
-    location: get('location'),
-    linkedin: get('linkedin'),
-    website: get('website'),
-  };
+  // Parse "# Name - Job Title" heading
+  const headingMatch = content.match(/^#\s+(.+?)(?:\s+[-–]\s+(.+))?$/m);
+  const name = headingMatch?.[1]?.trim() ?? "Candidate";
+  const jobTitle = headingMatch?.[2]?.trim();
+
+  // Find first line containing | (contact line)
+  const contactLine = content.match(/^[^#\n].+\|.+$/m)?.[0] ?? "";
+  const parts = contactLine.split("|").map((p) => p.trim());
+
+  let email: string | undefined;
+  let phone: string | undefined;
+  let location: string | undefined;
+  let linkedin: string | undefined;
+  let website: string | undefined;
+
+  for (const part of parts) {
+    // Strip markdown link syntax, keep display text
+    const clean = part.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
+    if (clean.includes("@")) email = clean;
+    else if (/^\+?\d[\d\s()./-]{5,}/.test(clean)) phone = clean;
+    else if (/linkedin/i.test(clean)) linkedin = clean;
+    else if (/https?:\/\/|^www\./i.test(clean)) website = clean;
+    else if (clean && !location) location = clean;
+  }
+
+  return { name, jobTitle, email, phone, location, linkedin, website };
+}
+
+function extractJobBulletMap(content: string): Map<string, { jobTitle: string; company: string; period: string }> {
+  const map = new Map<string, { jobTitle: string; company: string; period: string }>();
+  const lines = content.split("\n");
+  let inExperience = false;
+  let currentJob: { jobTitle: string; company: string; period: string } | null = null;
+  let globalBulletIdx = 0;
+
+  for (const line of lines) {
+    if (/^## Experience/i.test(line)) { inExperience = true; continue; }
+    if (/^## /.test(line)) inExperience = false;
+
+    if (inExperience) {
+      // ### Company | Role | Period
+      const jobMatch = line.match(/^###\s+([^|]+)\|\s*([^|]+)\|\s*(.+)$/);
+      if (jobMatch) {
+        currentJob = {
+          company: jobMatch[1].trim(),
+          jobTitle: jobMatch[2].trim(),
+          period: jobMatch[3].trim(),
+        };
+      }
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      if (inExperience && currentJob) map.set(`b${globalBulletIdx}`, currentJob);
+      globalBulletIdx++;
+    }
+  }
+
+  return map;
+}
+
+function extractSkills(content: string) {
+  const section = content.match(/## Skills\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? "";
+  const categories: Array<{ label: string; items: string[] }> = [];
+  for (const line of section.split("\n")) {
+    // Match "- **Label**: item1, item2, ..."
+    const m = line.match(/^[-*]\s+\*\*([^*]+)\*\*:\s*(.+)/);
+    if (m) {
+      const items = m[2].split(/,\s*/).map((s) => s.replace(/\.$/, "").trim()).filter(Boolean);
+      categories.push({ label: m[1].trim(), items });
+    }
+  }
+  return categories;
 }
 
 function extractEducation(content: string) {
   const edu: Array<{ institution: string; degree: string; period: string }> = [];
-  const eduSection = content.match(/## Education\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? '';
-  const blocks = eduSection.match(/###.+[\s\S]*?(?=\n###|\n##|$)/g) ?? [];
-  for (const block of blocks) {
-    const titleM = block.match(/###\s+(.+)\s+—\s+(.+)\s+\(([^)]+)\)/);
-    if (titleM) {
-      edu.push({ institution: titleM[1].trim(), degree: titleM[2].trim(), period: titleM[3].trim() });
+  const section = content.match(/## Education\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? "";
+
+  for (const line of section.split("\n")) {
+    // Format: - **Degree** | Institution | period
+    const m = line.match(/^[-*]\s+\*\*([^*]+)\*\*\s*\|\s*([^|]+)\|\s*(.+)$/);
+    if (m) {
+      edu.push({
+        degree: m[1].trim(),
+        institution: m[2].trim(),
+        period: m[3].trim(),
+      });
+      continue;
+    }
+    // Format: ### Institution | Role | period
+    const m2 = line.match(/^###\s+([^|]+)\|\s*([^|]+)\|\s*(.+)$/);
+    if (m2) {
+      edu.push({
+        institution: m2[1].trim(),
+        degree: m2[2].trim(),
+        period: m2[3].trim(),
+      });
     }
   }
   return edu;
@@ -72,24 +151,36 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   const { jobId, parentGenerationId, feedbackRating, feedbackComment } = input;
 
   const job = getJobById(jobId);
-  if (!job) throw Object.assign(new Error(`Job ${jobId} not found`), { status: 404 });
+  if (!job)
+    throw Object.assign(new Error(`Job ${jobId} not found`), { status: 404 });
 
   const profileContent = loadProfile();
   const profileHash = hashProfile(profileContent);
-  log.info(MODULE, 'profile loaded', { hash: profileHash, length: profileContent.length });
+  log.info(MODULE, "profile loaded", {
+    hash: profileHash,
+    length: profileContent.length,
+  });
 
   const bulletCatalog = extractBulletCatalog(profileContent);
   const personalInfo = extractPersonalInfo(profileContent);
   const education = extractEducation(profileContent);
+  const skillCategories = extractSkills(profileContent);
+  const jobBulletMap = extractJobBulletMap(profileContent);
 
   // Build prompt
-  let prompt = `Adapta el CV y carta de presentación para este puesto.\n\n`;
+  let prompt = `Adapt the CV and cover letter for this position.\n\n`;
   const jobDescription = job.raw_snapshot || job.description_md;
-  prompt += `## Oferta\n${jobDescription}\n\n`;
-  prompt += `## Perfil del candidato\n${profileContent}\n\n`;
-  prompt += `## Catálogo de bullets disponibles (usa solo estos bulletIds)\n`;
+  prompt += `## Job offer\n${jobDescription}\n\n`;
+  prompt += `## Candidate profile\n${profileContent}\n\n`;
+  prompt += `## Available bullet catalog (use only these bulletIds)\n`;
   for (const b of bulletCatalog) {
     prompt += `- ${b.bulletId}: ${b.originalText}\n`;
+  }
+
+  const flatSkills = skillCategories.flatMap((c) => c.items);
+  prompt += `\n## Available skills catalog (use only these exact strings)\n`;
+  for (const s of flatSkills) {
+    prompt += `- ${s}\n`;
   }
 
   const isIteration = !!parentGenerationId;
@@ -98,25 +189,32 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     const parent = getGenerationById(parentGenerationId);
     if (parent) {
       const hasFeedback = parent.feedback_rating != null;
-      log.info(MODULE, 'parent loaded', { parentGenerationId, hasFeedback });
-      prompt += `\n## Generación anterior (como referencia para la iteración)\n`;
-      prompt += `Bullets seleccionados: ${parent.bullets_json}\n`;
-      prompt += `Cuerpo de carta: ${parent.cover_paragraphs_json}\n`;
+      log.info(MODULE, "parent loaded", { parentGenerationId, hasFeedback });
+      prompt += `\n## Previous generation (as reference for this iteration)\n`;
+      prompt += `Selected bullets: ${parent.bullets_json}\n`;
+      prompt += `Selected skills: ${parent.skills_json ?? "none"}\n`;
+      prompt += `Cover letter body: ${parent.cover_paragraphs_json}\n`;
       if (feedbackRating) {
-        prompt += `\n## Feedback del usuario\nRating: ${feedbackRating}/5\n`;
-        if (feedbackComment) prompt += `Comentario: ${feedbackComment}\n`;
+        prompt += `\n## User feedback\nRating: ${feedbackRating}/5\n`;
+        if (feedbackComment) prompt += `Comment: ${feedbackComment}\n`;
       }
     }
   }
 
-  const mode = isIteration ? 'iteration' : 'initial';
-  log.info(MODULE, 'agent invoke begin', { mode, jobId, bulletCount: bulletCatalog.length });
+  const mode = isIteration ? "iteration" : "initial";
+  log.info(MODULE, "agent invoke begin", {
+    mode,
+    jobId,
+    bulletCount: bulletCatalog.length,
+  });
 
   const ctx: WriterRunContext = {
     bullets: null,
+    skillItems: null,
     coverParagraphs: null,
     finalized: false,
-    availableBulletIds: new Set(bulletCatalog.map(b => b.bulletId)),
+    availableBulletIds: new Set(bulletCatalog.map((b) => b.bulletId)),
+    availableSkills: skillCategories.flatMap((c) => c.items),
   };
 
   try {
@@ -125,35 +223,42 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     await agent.generate({ prompt });
     const agentDuration = Date.now() - agentT0;
 
-    if (!ctx.bullets || !ctx.coverParagraphs) {
-      throw new Error('Writer agent did not produce bullets and cover letter');
+    if (!ctx.bullets || !ctx.skillItems || !ctx.coverParagraphs) {
+      throw new Error("Writer agent did not produce bullets, skills, and cover letter");
     }
 
-    const coverLen = ctx.coverParagraphs.join('\n').length;
-    log.info(MODULE, 'agent result', {
+    const coverLen = ctx.coverParagraphs.join("\n").length;
+    log.info(MODULE, "agent result", {
       mode,
       bulletCount: ctx.bullets.length,
       coverLen,
       duration: agentDuration,
     });
-  } catch (err: any) {
-    log.error(MODULE, 'agent failure', { error: err.message });
-    return { kind: 'error', message: err.message };
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    log.error(MODULE, "agent failure", { error: error.message });
+    return { kind: "error", message: error.message };
   }
 
   const generationId = nanoid();
   const outDir = path.join(OUTPUT_BASE, jobId, generationId);
   fs.mkdirSync(outDir, { recursive: true });
 
-  const cvPath = path.join(outDir, 'cv.pdf');
-  const coverPath = path.join(outDir, 'cover.pdf');
+  const cvPath = path.join(outDir, "cv.pdf");
+  const coverPath = path.join(outDir, "cover.pdf");
+
+  const enrichedBullets = ctx.bullets.map((b) => ({
+    ...b,
+    ...(jobBulletMap.get(b.bulletId) ?? {}),
+  }));
 
   // Render CV
   await renderToFile(
     React.createElement(CvTemplate, {
       ...personalInfo,
-      bullets: ctx.bullets,
+      bullets: enrichedBullets,
       education,
+      skillCategories: [{ label: "Skills", items: ctx.skillItems }],
     }) as React.ReactElement<DocumentProps>,
     cvPath,
   );
@@ -172,7 +277,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
 
   const cvSize = fs.statSync(cvPath).size;
   const coverSize = fs.statSync(coverPath).size;
-  log.info(MODULE, 'pdf rendered', { cvPath, coverPath, cvSize, coverSize });
+  log.info(MODULE, "pdf rendered", { cvPath, coverPath, cvSize, coverSize });
 
   insertGeneration({
     id: generationId,
@@ -181,20 +286,21 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     cv_path: cvPath,
     cover_path: coverPath,
     bullets_json: JSON.stringify(ctx.bullets),
+    skills_json: JSON.stringify(ctx.skillItems),
     cover_paragraphs_json: JSON.stringify(ctx.coverParagraphs),
     parent_generation_id: parentGenerationId ?? null,
     feedback_rating: feedbackRating ?? null,
     feedback_comment: feedbackComment ?? null,
   });
 
-  log.info(MODULE, 'persist', {
+  log.info(MODULE, "persist", {
     generationId,
     jobId,
     parent: parentGenerationId ?? null,
   });
 
   return {
-    kind: 'success',
+    kind: "success",
     generationId,
     cvUrl: `/api/generations/${generationId}/cv`,
     coverUrl: `/api/generations/${generationId}/cover`,

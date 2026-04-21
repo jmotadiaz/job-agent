@@ -1,47 +1,195 @@
-import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import React from "react";
+import path from "path";
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+  Font,
+} from "@react-pdf/renderer";
+
+// Disable hyphenation to prevent splitting words (e.g., ENGI-NEER)
+Font.registerHyphenationCallback((word) => [word]);
+
+const fontsDir = path.join(process.cwd(), "src/lib/writer/templates/fonts");
+
+// Register Montserrat font using local files to avoid network issues
+Font.register({
+  family: "Montserrat",
+  fonts: [
+    {
+      src: path.join(fontsDir, "montserrat-v31-latin-regular.ttf"),
+      fontWeight: 400,
+    },
+    {
+      src: path.join(fontsDir, "montserrat-v31-latin-700.ttf"),
+      fontWeight: 700,
+    },
+  ],
+});
+
+const ACCENT = "#B8960C";
+const MUTED = "#5b5b5b"; // Muted gray for descriptions
+const PRIMARY = "#000000"; // Black for headers and titles
+const SECONDARY = "#222222"; // Slightly softer black for subheaders
+const DIVIDER = "#d1d0cc"; // Light gray for lines
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: 'Helvetica', fontSize: 10, color: '#222' },
-  header: { marginBottom: 16 },
-  name: { fontSize: 22, fontFamily: 'Helvetica-Bold', marginBottom: 4 },
-  contactLine: { fontSize: 9, color: '#555', marginBottom: 2 },
-  sectionTitle: {
-    fontSize: 11,
-    fontFamily: 'Helvetica-Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    borderBottom: '1pt solid #ccc',
-    paddingBottom: 2,
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  summary: { fontSize: 10, lineHeight: 1.5, marginBottom: 4 },
-  experienceBlock: { marginBottom: 8 },
-  jobTitle: { fontFamily: 'Helvetica-Bold', fontSize: 10 },
-  jobMeta: { fontSize: 9, color: '#555', marginBottom: 2 },
-  bullet: { fontSize: 10, marginLeft: 10, marginBottom: 2, lineHeight: 1.4 },
-  skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  skillChip: {
+  page: {
+    flexDirection: "row",
+    fontFamily: "Montserrat",
     fontSize: 9,
-    backgroundColor: '#f0f0f0',
-    padding: '2pt 6pt',
-    borderRadius: 3,
-    marginRight: 4,
+    color: PRIMARY,
+    backgroundColor: "#f0ede9", // Cream background
+  },
+  leftCol: {
+    width: "40%",
+    paddingTop: 55,
+    paddingLeft: 40,
+    paddingRight: 20,
+    paddingBottom: 40,
+    borderRight: "0.5pt solid " + DIVIDER,
+  },
+  rightCol: {
+    width: "60%",
+    paddingTop: 55,
+    paddingLeft: 35,
+    paddingRight: 40,
+    paddingBottom: 40,
+  },
+  name: {
+    fontSize: 30,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+    marginBottom: 10,
+    letterSpacing: -0.5,
+  },
+  jobTitleText: {
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginBottom: 45,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    letterSpacing: 2,
+    color: PRIMARY,
+    textTransform: "uppercase",
+    marginBottom: 20,
+    marginTop: 30,
+  },
+  sectionDivider: {
+    borderBottom: "0.5pt solid " + DIVIDER,
+    marginBottom: 15,
+  },
+  expBlock: {
+    marginBottom: 30,
+  },
+  expCompany: {
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+    textTransform: "uppercase",
     marginBottom: 4,
   },
-  educationBlock: { marginBottom: 6 },
-  eduTitle: { fontFamily: 'Helvetica-Bold', fontSize: 10 },
-  eduMeta: { fontSize: 9, color: '#555' },
+  expHeaderWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  expJobTitle: {
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+  },
+  expPeriod: {
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+  },
+  expSeparator: {
+    marginHorizontal: 5,
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+  },
+  expDescription: {
+    fontSize: 9,
+    lineHeight: 1.6,
+    color: MUTED,
+    marginBottom: 6,
+    textAlign: "justify",
+  },
+  itemBullet: {
+    fontSize: 8,
+    color: MUTED,
+    marginRight: 4,
+  },
+  eduBlock: {
+    marginBottom: 18,
+  },
+  eduPeriod: {
+    fontSize: 9,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+    marginBottom: 2,
+  },
+  eduInstitution: {
+    fontSize: 10,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    color: PRIMARY,
+    marginBottom: 2,
+  },
+  eduDegree: {
+    fontSize: 9,
+    color: MUTED,
+  },
+  contactItem: {
+    fontSize: 9,
+    color: SECONDARY,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  skillItem: {
+    fontSize: 9,
+    fontFamily: "Montserrat",
+    color: MUTED,
+    marginBottom: 5,
+    paddingLeft: 10,
+    lineHeight: 1.4,
+  },
 });
 
 export interface BulletItem {
   bulletId: string;
   renderedText: string;
+  jobTitle?: string;
+  company?: string;
+  period?: string;
+}
+
+export interface SkillCategory {
+  label: string;
+  items: string[];
 }
 
 export interface CvTemplateProps {
   name: string;
+  jobTitle?: string;
   email?: string;
   phone?: string;
   location?: string;
@@ -50,12 +198,51 @@ export interface CvTemplateProps {
   summary?: string;
   bullets: BulletItem[];
   skills?: string[];
+  skillCategories?: SkillCategory[];
   education?: Array<{ institution: string; degree: string; period: string }>;
-  jobTitle?: string;
+}
+
+interface JobGroup {
+  jobTitle: string;
+  company: string;
+  period: string;
+  descriptions: string[];
+}
+
+function groupBulletsByJob(bullets: BulletItem[]): {
+  grouped: JobGroup[];
+  ungrouped: string[];
+} {
+  const grouped: JobGroup[] = [];
+  const ungrouped: string[] = [];
+
+  for (const b of bullets) {
+    if (b.jobTitle && b.company) {
+      const key = `${b.jobTitle}|${b.company}`;
+      const existing = grouped.find(
+        (g) => `${g.jobTitle}|${g.company}` === key,
+      );
+      if (existing) {
+        existing.descriptions.push(b.renderedText);
+      } else {
+        grouped.push({
+          jobTitle: b.jobTitle,
+          company: b.company,
+          period: b.period ?? "",
+          descriptions: [b.renderedText],
+        });
+      }
+    } else {
+      ungrouped.push(b.renderedText);
+    }
+  }
+
+  return { grouped, ungrouped };
 }
 
 export function CvTemplate({
   name,
+  jobTitle,
   email,
   phone,
   location,
@@ -64,65 +251,110 @@ export function CvTemplate({
   summary,
   bullets,
   skills = [],
+  skillCategories = [],
   education = [],
-  jobTitle,
 }: CvTemplateProps) {
-  const contacts = [email, phone, location, linkedin, website].filter(Boolean);
+  const contactItems = [email, phone, location, linkedin, website].filter(
+    Boolean,
+  ) as string[];
+  const { grouped, ungrouped } = groupBulletsByJob(bullets);
+
+  const renderedCategories: SkillCategory[] =
+    skillCategories.length > 0
+      ? skillCategories
+      : skills.length > 0
+        ? [{ label: "Skills", items: skills }]
+        : [];
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
+        {/* SIDEBAR (LEFT) */}
+        <View style={styles.leftCol}>
           <Text style={styles.name}>{name}</Text>
-          {jobTitle && <Text style={{ ...styles.contactLine, fontFamily: 'Helvetica-Bold' }}>{jobTitle}</Text>}
-          <Text style={styles.contactLine}>{contacts.join('  ·  ')}</Text>
+          {jobTitle && <Text style={styles.jobTitleText}>{jobTitle}</Text>}
+
+          {/* Contact */}
+          <View style={{ marginBottom: 30 }}>
+            {contactItems.map((c, i) => (
+              <Text key={i} style={styles.contactItem}>
+                {c}
+              </Text>
+            ))}
+          </View>
+
+          {/* Education */}
+          {education.length > 0 && (
+            <View style={{ marginBottom: 20 }}>
+              <View style={styles.sectionDivider} />
+              <Text style={styles.sectionLabel}>EDUCATION</Text>
+              {education.map((e, i) => (
+                <View key={i} style={styles.eduBlock}>
+                  <Text style={styles.eduPeriod}>{e.period}</Text>
+                  <Text style={styles.eduInstitution}>{e.institution}</Text>
+                  <Text style={styles.eduDegree}>{e.degree}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Skills */}
+          {renderedCategories.length > 0 && (
+            <View>
+              <View style={styles.sectionDivider} />
+              {renderedCategories.map((cat, i) => (
+                <View key={i} style={{ marginBottom: 15 }}>
+                  <Text style={styles.sectionLabel}>{cat.label}</Text>
+                  {cat.items.map((item, j) => (
+                    <Text key={j} style={styles.skillItem}>
+                      • {item}
+                    </Text>
+                  ))}
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
-        {/* Summary */}
-        {summary && (
-          <>
-            <Text style={styles.sectionTitle}>Summary</Text>
-            <Text style={styles.summary}>{summary}</Text>
-          </>
-        )}
+        {/* MAIN (RIGHT) */}
+        <View style={styles.rightCol}>
+          {/* Experience — grouped by job */}
+          {(grouped.length > 0 || ungrouped.length > 0) && (
+            <>
+              <Text style={styles.sectionLabel}>EXPERIENCE</Text>
 
-        {/* Experience */}
-        {bullets.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Experience</Text>
-            <View style={styles.experienceBlock}>
-              {bullets.map((b, i) => (
-                <Text key={b.bulletId ?? i} style={styles.bullet}>• {b.renderedText}</Text>
+              {grouped.map((job, i) => (
+                <View key={i}>
+                  {i > 0 && <View style={styles.sectionDivider} />}
+                  <View style={styles.expBlock}>
+                    <Text style={styles.expCompany}>{job.company}</Text>
+                    <View style={styles.expHeaderWrapper}>
+                      <Text style={styles.expJobTitle}>{job.jobTitle}</Text>
+                      <Text style={styles.expSeparator}>|</Text>
+                      <Text style={styles.expPeriod}>{job.period}</Text>
+                    </View>
+                    {job.descriptions.map((desc, j) => (
+                      <Text key={j} style={styles.expDescription}>
+                        {desc}
+                      </Text>
+                    ))}
+                  </View>
+                </View>
               ))}
-            </View>
-          </>
-        )}
 
-        {/* Skills */}
-        {skills.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Skills</Text>
-            <View style={styles.skillsRow}>
-              {skills.map((s, i) => (
-                <Text key={i} style={styles.skillChip}>{s}</Text>
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* Education */}
-        {education.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Education</Text>
-            {education.map((e, i) => (
-              <View key={i} style={styles.educationBlock}>
-                <Text style={styles.eduTitle}>{e.institution}</Text>
-                <Text style={styles.eduMeta}>{e.degree}  ·  {e.period}</Text>
-              </View>
-            ))}
-          </>
-        )}
+              {/* Fallback: bullets without job metadata */}
+              {ungrouped.length > 0 && (
+                <View style={styles.expBlock}>
+                  {ungrouped.map((desc, i) => (
+                    <Text key={i} style={styles.expDescription}>
+                      {desc}
+                    </Text>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        </View>
       </Page>
     </Document>
   );

@@ -59,6 +59,30 @@ function buildTree(generations: Generation[]): GenerationNode[] {
   return roots;
 }
 
+function parseDescriptionField(md: string, field: string): string | null {
+  const m = md.match(new RegExp(`\\*\\*${field}\\*\\*:\\s*([^\\n]+)`));
+  if (!m) return null;
+  const v = m[1].trim();
+  return v === "Not specified" || v === "" ? null : v;
+}
+
+function jobSubtitle(job: Job): {
+  company: string | null;
+  location: string | null;
+  salary: string | null;
+} {
+  const isPrivacyText = /linkedin (respects|protects|protege)/i.test(
+    job.company,
+  );
+  const company = isPrivacyText
+    ? parseDescriptionField(job.description_md, "Company")
+    : job.company || null;
+  const location =
+    job.location || parseDescriptionField(job.description_md, "Location");
+  const salary = parseDescriptionField(job.description_md, "Salary");
+  return { company, location, salary };
+}
+
 function statusLabel(s: Job["status"]): string {
   return {
     new: "New",
@@ -404,6 +428,7 @@ function JobRow({
           cv_path: "",
           cover_path: "",
           bullets_json: "[]",
+          skills_json: "[]",
           cover_paragraphs_json: "[]",
           created_at: Date.now(),
           parent_generation_id: null,
@@ -465,6 +490,8 @@ function JobRow({
       (a, b) => (a.created_at > b.created_at ? a : b),
       generations[0],
     )?.id ?? "";
+  
+  const { company, location, salary } = jobSubtitle(job);
 
   return (
     <div className="card fade-in mb-5 overflow-hidden">
@@ -494,11 +521,17 @@ function JobRow({
             </span>
           </div>
           <div className="text-[13px] text-[var(--text-secondary)] mb-2">
-            <span className="font-medium">{job.company}</span>
-            {job.location && (
+            <span className="font-medium">{company}</span>
+            {location && (
               <span className="text-[var(--text-muted)]">
                 {" "}
-                · {job.location}
+                · {location}
+              </span>
+            )}
+            {salary && (
+              <span className="text-[var(--text-muted)]">
+                {" "}
+                · {salary}
               </span>
             )}
           </div>

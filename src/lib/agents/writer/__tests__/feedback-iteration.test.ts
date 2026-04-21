@@ -44,6 +44,7 @@ interface StoredGeneration {
   cv_path: string;
   cover_path: string;
   bullets_json: string;
+  skills_json: string;
   cover_paragraphs_json: string;
   created_at: number;
   parent_generation_id: string | null;
@@ -142,6 +143,7 @@ function setFakeRun(fn: (tools: Record<string, { execute: Function }>) => Promis
 function makeBulletsRun(items: Array<{ bulletId: string; renderedText: string }>) {
   return async (tools: Record<string, { execute: Function }>) => {
     await tools.selectBullets.execute({ items }, {} as never);
+    await tools.selectSkills.execute({ items: ['React', 'TypeScript'] }, {} as never);
     await tools.composeCoverLetter.execute({
       paragraphs: ['Dear CoolCo team, I am excited to apply.', 'My React experience fits this role.'],
     }, {} as never);

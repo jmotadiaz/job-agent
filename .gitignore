@@ -42,9 +42,10 @@ next-env.d.ts
 
 # job-agent
 profile.md
-*.sqlite
+data/
 .agent-browser/
 generated-pdfs/
 
 # Scout debug snapshots
 scout-snapshots/
+/log/
