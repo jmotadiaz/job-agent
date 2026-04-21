@@ -66,12 +66,19 @@ function parseDescriptionField(md: string, field: string): string | null {
   return v === "Not specified" || v === "" ? null : v;
 }
 
-function jobSubtitle(job: Job): { company: string | null; location: string | null; salary: string | null } {
-  const isPrivacyText = /linkedin (respects|protects|protege)/i.test(job.company);
+function jobSubtitle(job: Job): {
+  company: string | null;
+  location: string | null;
+  salary: string | null;
+} {
+  const isPrivacyText = /linkedin (respects|protects|protege)/i.test(
+    job.company,
+  );
   const company = isPrivacyText
     ? parseDescriptionField(job.description_md, "Company")
     : job.company || null;
-  const location = job.location || parseDescriptionField(job.description_md, "Location");
+  const location =
+    job.location || parseDescriptionField(job.description_md, "Location");
   const salary = parseDescriptionField(job.description_md, "Salary");
   return { company, location, salary };
 }
@@ -97,32 +104,14 @@ function scoreBar(score: number) {
   const color =
     pct >= 75 ? "var(--green)" : pct >= 50 ? "var(--amber)" : "var(--red)";
   return (
-    <div
-      style={{ display: "flex", alignItems: "center", gap: 8 }}
-      title={`Match score: ${pct}%`}
-    >
-      <div
-        style={{
-          flex: 1,
-          height: 4,
-          background: "var(--bg-hover)",
-          borderRadius: 2,
-          minWidth: 60,
-        }}
-      >
+    <div className="flex items-center gap-2" title={`Match score: ${pct}%`}>
+      <div className="flex-1 h-1 bg-[var(--bg-hover)] rounded-sm min-w-[60px]">
         <div
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            background: color,
-            borderRadius: 2,
-            transition: "width 0.3s",
-          }}
+          className="h-full rounded-sm transition-[width] duration-300"
+          style={{ width: `${pct}%`, background: color }}
         />
       </div>
-      <span
-        style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 28 }}
-      >
+      <span className="text-[11px] text-[var(--text-secondary)] min-w-7">
         {pct}%
       </span>
     </div>
@@ -235,28 +224,18 @@ function FeedbackForm({
   if (!expanded) {
     return (
       <button
-        className="btn btn-ghost btn-sm"
+        className="btn btn-ghost btn-sm mt-1.5"
         onClick={() => setExpanded(true)}
-        style={{ marginTop: 6 }}
       >
-        <MessageSquare size={14} style={{ marginRight: 6 }} />
+        <MessageSquare size={14} className="mr-1.5" />
         Iterate with feedback
       </button>
     );
   }
 
   return (
-    <div className="card-raised fade-in" style={{ padding: 12, marginTop: 8 }}>
-      <div
-        style={{
-          marginBottom: 8,
-          fontSize: 12,
-          color: "var(--text-secondary)",
-          fontWeight: 600,
-          letterSpacing: "0.5px",
-          textTransform: "uppercase",
-        }}
-      >
+    <div className="card-raised fade-in p-3 mt-2">
+      <div className="mb-2 text-xs text-[var(--text-secondary)] font-semibold tracking-[0.5px] uppercase">
         Feedback
       </div>
       <StarRating value={rating} onChange={setRating} />
@@ -265,10 +244,10 @@ function FeedbackForm({
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         rows={2}
-        style={{ marginTop: 8 }}
+        className="mt-2"
         id={`feedback-comment-${generationId}`}
       />
-      <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+      <div className="flex gap-3 mt-3">
         <button
           className="btn btn-primary btn-sm"
           disabled={!rating || loading}
@@ -280,7 +259,7 @@ function FeedbackForm({
             </>
           ) : (
             <>
-              <Sparkles size={14} style={{ marginRight: 6 }} /> Iterate
+              <Sparkles size={14} className="mr-1.5" /> Iterate
             </>
           )}
         </button>
@@ -323,26 +302,12 @@ function GenerationNodeView({
   return (
     <div className={depth > 0 ? "tree-branch" : ""}>
       <div
-        className={`card-raised tree-node fade-in`}
-        style={{
-          padding: "14px 18px",
-          marginBottom: 10,
-          border: isLatest ? "1px solid var(--border)" : undefined,
-          background: isLatest ? "var(--bg-hover)" : "var(--bg-raised)",
-        }}
+        className={`card-raised tree-node fade-in px-[18px] py-[14px] mb-2.5 ${isLatest ? "!bg-[var(--bg-hover)]" : ""}`}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-            marginBottom: 6,
-          }}
-        >
+        <div className="flex items-center gap-2 flex-wrap mb-1.5">
           {isLatest && (
             <span className="badge badge-accent">
-              <Zap size={10} style={{ marginRight: 4 }} /> Latest
+              <Zap size={10} className="mr-1" /> Latest
             </span>
           )}
           {isStale && (
@@ -350,8 +315,7 @@ function GenerationNodeView({
               className="badge badge-amber"
               title="Generated with an older version of profile.md"
             >
-              <AlertTriangle size={10} style={{ marginRight: 4 }} /> Profile
-              changed
+              <AlertTriangle size={10} className="mr-1" /> Profile changed
             </span>
           )}
           {node.feedback_rating != null && (
@@ -359,52 +323,29 @@ function GenerationNodeView({
               className="badge badge-muted"
               title={node.feedback_comment ?? ""}
             >
-              <Star size={10} fill="currentColor" style={{ marginRight: 4 }} />{" "}
+              <Star size={10} fill="currentColor" className="mr-1" />{" "}
               {node.feedback_rating} feedback
             </span>
           )}
-          <span
-            style={{
-              fontSize: 11,
-              color: "var(--text-muted)",
-              marginLeft: "auto",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
+          <span className="text-[11px] text-[var(--text-muted)] ml-auto flex items-center gap-1">
             <Clock size={10} /> {new Date(node.created_at).toLocaleString()}
           </span>
         </div>
 
         {node.feedback_comment && (
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--text-secondary)",
-              fontStyle: "italic",
-              marginTop: 4,
-              marginBottom: 12,
-              padding: "10px 14px",
-              background: "var(--bg-primary)",
-              borderRadius: 2,
-              borderLeft: "2px solid var(--border)",
-            }}
-          >
+          <div className="text-xs text-[var(--text-secondary)] italic mt-1 mb-3 px-3.5 py-2.5 bg-[var(--bg-primary)] rounded-sm border-l-2 border-l-[var(--border)]">
             "{node.feedback_comment}"
           </div>
         )}
 
-        <div
-          style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 8 }}
-        >
+        <div className="flex gap-3 flex-wrap mt-2">
           <a
             className="btn btn-ghost btn-sm"
             href={`/api/generations/${node.id}/cv`}
             target="_blank"
             rel="noopener noreferrer"
           >
-            <FileText size={14} style={{ marginRight: 6 }} /> Download CV
+            <FileText size={14} className="mr-1.5" /> Download CV
           </a>
           <a
             className="btn btn-ghost btn-sm"
@@ -412,7 +353,7 @@ function GenerationNodeView({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Mail size={14} style={{ marginRight: 6 }} /> Download Cover
+            <Mail size={14} className="mr-1.5" /> Download Cover
           </a>
         </div>
 
@@ -488,6 +429,7 @@ function JobRow({
           cover_path: "",
           bullets_json: "[]",
           skills_json: "[]",
+          skills_json: "[]",
           cover_paragraphs_json: "[]",
           created_at: Date.now(),
           parent_generation_id: null,
@@ -550,20 +492,13 @@ function JobRow({
       generations[0],
     )?.id ?? "";
 
+  const { company, location, salary } = jobSubtitle(job);
+
   return (
-    <div
-      className="card fade-in"
-      style={{ marginBottom: 20, overflow: "hidden" }}
-    >
+    <div className="card fade-in mb-5 overflow-hidden">
       {/* Header row */}
       <div
-        style={{
-          padding: "20px 24px",
-          cursor: "pointer",
-          display: "flex",
-          gap: 20,
-          alignItems: "flex-start",
-        }}
+        className="px-6 py-5 cursor-pointer flex gap-5 items-start"
         onClick={() => setExpanded((e) => !e)}
         role="button"
         aria-expanded={expanded}
@@ -571,43 +506,17 @@ function JobRow({
         {/* Expand chevron */}
         <ChevronRight
           size={16}
-          style={{
-            color: "var(--text-muted)",
-            marginTop: 2,
-            transition: "transform 0.15s",
-            transform: expanded ? "rotate(90deg)" : "none",
-            flexShrink: 0,
-          }}
+          className={`text-[var(--text-muted)] mt-0.5 transition-transform duration-150 flex-shrink-0 ${expanded ? "rotate-90" : ""}`}
         />
 
         {/* Job info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              flexWrap: "wrap",
-              marginBottom: 4,
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 14,
-                fontWeight: 600,
-                color: "var(--text-primary)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: 400,
-              }}
-            >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap mb-1">
+            <h2 className="m-0 text-sm font-semibold text-[var(--text-primary)] whitespace-nowrap overflow-hidden text-ellipsis max-w-[400px]">
               {job.title || "Unknown Title"}
             </h2>
             <span
-              className={`badge ${statusBadgeClass(job.status)}`}
-              style={{ fontSize: 10, padding: "1px 6px", opacity: 0.8 }}
+              className={`badge ${statusBadgeClass(job.status)} text-[10px] px-1.5 py-px opacity-80`}
             >
               {statusLabel(job.status)}
             </span>
@@ -627,10 +536,13 @@ function JobRow({
               const { company, location, salary } = jobSubtitle(job);
               return (
                 <>
-                  {company && <span style={{ fontWeight: 500 }}>{company}</span>}
+                  {company && (
+                    <span style={{ fontWeight: 500 }}>{company}</span>
+                  )}
                   {location && (
                     <span style={{ color: "var(--text-muted)" }}>
-                      {company ? "· " : ""}{location}
+                      {company ? "· " : ""}
+                      {location}
                     </span>
                   )}
                   {salary && (
@@ -643,24 +555,14 @@ function JobRow({
             })()}
           </div>
           {scoreBar(job.match_score)}
-          <p
-            style={{
-              margin: "8px 0 0",
-              fontSize: 12,
-              color: "var(--text-secondary)",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
+          <p className="mt-2 mb-0 text-xs text-[var(--text-secondary)] line-clamp-2">
             {job.match_reason}
           </p>
         </div>
 
         {/* Actions (stop propagation to avoid toggle) */}
         <div
-          style={{ display: "flex", gap: 8, flexShrink: 0 }}
+          className="flex gap-2 flex-shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
           <a
@@ -685,7 +587,7 @@ function JobRow({
               </>
             ) : (
               <>
-                <WandSparkles size={14} style={{ marginRight: 6 }} /> Generate
+                <WandSparkles size={14} className="mr-1.5" /> Generate
               </>
             )}
           </button>
@@ -694,58 +596,27 @@ function JobRow({
 
       {/* Expanded body */}
       {expanded && (
-        <div
-          style={{
-            borderTop: "1px solid var(--border)",
-            padding: "24px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 24,
-          }}
-          className="fade-in"
-        >
+        <div className="border-t border-[var(--border)] p-6 flex flex-col gap-6 fade-in">
           {/* Description */}
           <details>
-            <summary
-              style={{
-                cursor: "pointer",
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                fontWeight: 500,
-                marginBottom: 6,
-              }}
-            >
+            <summary className="cursor-pointer text-[13px] text-[var(--text-secondary)] font-medium mb-1.5">
               Job summary
             </summary>
-            <div
-              style={{
-                fontSize: 13,
-                lineHeight: 1.7,
-                color: "var(--text-secondary)",
-                whiteSpace: "pre-wrap",
-                padding: "8px 0",
-              }}
-            >
+            <div className="text-[13px] leading-[1.7] text-[var(--text-secondary)] whitespace-pre-wrap py-2">
               {job.description_md}
             </div>
           </details>
 
           {/* Status actions */}
           {job.status !== "applied" && job.status !== "discarded" && (
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-              }}
-            >
+            <div className="flex gap-2 flex-wrap">
               <button
                 className="btn btn-success btn-sm"
                 onClick={() => handleStatus("applied")}
                 disabled={updatingStatus}
                 id={`apply-${job.id}`}
               >
-                <Check size={14} style={{ marginRight: 6 }} /> Mark as Applied
+                <Check size={14} className="mr-1.5" /> Mark as Applied
               </button>
               <button
                 className="btn btn-danger btn-sm"
@@ -753,32 +624,23 @@ function JobRow({
                 disabled={updatingStatus}
                 id={`discard-${job.id}`}
               >
-                <X size={14} style={{ marginRight: 6 }} /> Discard
+                <X size={14} className="mr-1.5" /> Discard
               </button>
             </div>
           )}
 
           {/* Generations tree */}
           <div>
-            <h3
-              style={{
-                margin: "0 0 10px",
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--text-secondary)",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
+            <h3 className="mt-0 mx-0 mb-2.5 text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-[0.5px]">
               Generations
             </h3>
             {loadingGens && (
-              <div style={{ color: "var(--text-muted)", fontSize: 13 }}>
+              <div className="text-[var(--text-muted)] text-[13px]">
                 <span className="spinner" /> Loading…
               </div>
             )}
             {!loadingGens && tree.length === 0 && (
-              <div style={{ color: "var(--text-muted)", fontSize: 13 }}>
+              <div className="text-[var(--text-muted)] text-[13px]">
                 No generations yet. Click ✨ Generate to create your first CV.
               </div>
             )}
@@ -830,10 +692,9 @@ function ScoutButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
     <div>
       <button
         id="scout-button"
-        className="btn btn-primary"
+        className="btn btn-primary min-w-[180px]"
         onClick={handleClick}
         disabled={loading}
-        style={{ minWidth: 180 }}
       >
         {loading ? (
           <>
@@ -841,26 +702,17 @@ function ScoutButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
           </>
         ) : (
           <>
-            <Search size={18} style={{ marginRight: 8 }} /> Scout LinkedIn
+            <Search size={18} className="mr-2" /> Scout LinkedIn
           </>
         )}
       </button>
       {result && !loading && (
         <div
-          className="fade-in"
-          style={{
-            marginTop: 10,
-            padding: "10px 14px",
-            borderRadius: 8,
-            fontSize: 13,
-            background:
-              result.kind === "match" ? "var(--green-bg)" : "var(--bg-raised)",
-            border: `1px solid ${result.kind === "match" ? "rgba(52,211,153,0.2)" : "var(--border)"}`,
-            color:
-              result.kind === "match"
-                ? "var(--green)"
-                : "var(--text-secondary)",
-          }}
+          className={`fade-in mt-2.5 px-3.5 py-2.5 rounded-lg text-[13px] ${
+            result.kind === "match"
+              ? "bg-[var(--green-bg)] border border-[rgba(52,211,153,0.2)] text-[var(--green)]"
+              : "bg-[var(--bg-raised)] border border-[var(--border)] text-[var(--text-secondary)]"
+          }`}
         >
           {result.kind === "match" && "✓ Found a match! See new job below."}
           {result.kind === "no_match" && `↩ No match: ${result.reason}`}
@@ -932,64 +784,28 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
   const filtered = tab === "all" ? jobs : jobs.filter((j) => j.status === tab);
 
   return (
-    <div style={{ minHeight: "100vh" }}>
+    <div className="min-h-screen">
       {/* Header */}
-      <header
-        style={{
-          borderBottom: "1px solid var(--border)",
-          background: "rgba(13,13,18,0.8)",
-          backdropFilter: "blur(12px)",
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 900,
-            margin: "0 auto",
-            padding: "16px 24px",
-            display: "flex",
-            alignItems: "center",
-            gap: 24,
-            flexWrap: "wrap",
-          }}
-        >
+      <header className="border-b border-[var(--border)] bg-[rgba(13,13,18,0.8)] backdrop-blur-[12px] sticky top-0 z-[100]">
+        <div className="max-w-[900px] mx-auto px-6 py-4 flex items-center gap-6 flex-wrap">
           <div>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 18,
-                fontWeight: 700,
-                letterSpacing: "-0.02em",
-                color: "var(--text-primary)",
-                textTransform: "uppercase",
-              }}
-            >
+            <h1 className="m-0 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)] uppercase">
               Job Scout
             </h1>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 11,
-                color: "var(--text-muted)",
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-              }}
-            >
+            <p className="m-0 text-[11px] text-[var(--text-muted)] tracking-[0.05em] uppercase">
               Intelligence in Search
             </p>
           </div>
-          <div style={{ marginLeft: "auto" }}>
+          <div className="ml-auto">
             <ScoutButton onNewJob={handleNewJob} />
           </div>
         </div>
       </header>
 
       {/* Main */}
-      <main style={{ maxWidth: 900, margin: "0 auto", padding: "40px 24px" }}>
+      <main className="max-w-[900px] mx-auto px-6 py-10">
         {/* Tabs */}
-        <div className="tabs" style={{ marginBottom: 40 }}>
+        <div className="tabs mb-10">
           {tabs.map((t) => (
             <button
               key={t.value}
@@ -998,22 +814,16 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
               onClick={() => setTab(t.value)}
             >
               {t.label}{" "}
-              <span style={{ opacity: 0.7, fontSize: 11 }}>({t.count})</span>
+              <span className="opacity-70 text-[11px]">({t.count})</span>
             </button>
           ))}
         </div>
 
         {/* Job list */}
         {filtered.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "64px 24px",
-              color: "var(--text-muted)",
-            }}
-          >
-            <div style={{ fontSize: 40, marginBottom: 16 }}>🔍</div>
-            <p style={{ fontSize: 15, margin: 0 }}>
+          <div className="text-center px-6 py-16 text-[var(--text-muted)]">
+            <div className="text-[40px] mb-4">🔍</div>
+            <p className="text-[15px] m-0">
               {tab === "all"
                 ? 'No jobs yet. Click "Find new job" to start scouting.'
                 : `No ${tab} jobs.`}
