@@ -6,9 +6,26 @@ import { insertJob } from "@/lib/db/jobs";
 import { closeBrowser, resetBrowserState } from "@/lib/agent-browser/exec";
 import { createScoutAgent, SCOUT_MAX_CANDIDATES } from "./agent";
 import { log } from "@/lib/utils/log";
-import type { ScoutResult } from "./types";
+import type { JobDetails, ScoutResult } from "./types";
 
 const MODULE = "scout/orchestrator";
+
+function detailsToMd(d: JobDetails): string {
+  return [
+    `- Role: ${d.role}`,
+    `- Company: ${d.company}`,
+    `- Location: ${d.location}`,
+    `- Remote: ${d.remote}`,
+    `- Contract: ${d.contract}`,
+    `- Experience required: ${d.experience_required}`,
+    `- Role type: ${d.role_type}`,
+    `- Primary tech (required): ${d.primary_tech.join(", ") || "Not specified"}`,
+    `- Secondary tech (nice-to-have): ${d.secondary_tech.join(", ") || "Not specified"}`,
+    `- Key responsibilities: ${d.key_responsibilities.join("; ") || "Not specified"}`,
+    `- Salary: ${d.salary}`,
+    `- Hard blockers: ${d.hard_blockers}`,
+  ].join("\n");
+}
 
 export async function runScout(): Promise<ScoutResult> {
   const profileContent = loadProfile();
@@ -59,7 +76,7 @@ export async function runScout(): Promise<ScoutResult> {
       title: summary.title,
       company: summary.company,
       location: summary.location,
-      description_md: summary.summary_md,
+      description_md: detailsToMd(summary.details),
       raw_snapshot: ctx.lastRawText ?? null,
       match_score: ctx.matchResult.score,
       match_reason: ctx.matchResult.reason,

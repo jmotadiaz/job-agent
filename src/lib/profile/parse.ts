@@ -1,3 +1,5 @@
+import matter from "gray-matter";
+
 export interface SearchConfig {
   query: string;
   location?: string;
@@ -8,34 +10,30 @@ export interface SearchConfig {
 
 export interface ParsedProfile {
   search: SearchConfig;
+  linkedinProfile?: string;
   rawContent: string;
 }
 
 export function parseProfile(content: string): ParsedProfile {
-  const searchMatch = content.match(/## search\s+([\s\S]*?)(?=\n##|\n*$)/i);
-  if (!searchMatch) {
-    throw new Error('profile.md must contain a ## search section with at least a "query:" field');
+  const { data, content: body } = matter(content);
+
+  const s = data.search;
+  if (!s || typeof s !== "object") {
+    throw new Error('profile.md must contain a frontmatter "search" key with at least a "query" field');
   }
-
-  const section = searchMatch[1];
-  const get = (key: string): string | undefined => {
-    const m = section.match(new RegExp(`^${key}:\\s*["']?([^"'\n]+)["']?`, 'm'));
-    return m?.[1]?.trim();
-  };
-
-  const query = get('query');
-  if (!query) throw new Error('## search section must define a "query:" field');
-
-  const remoteRaw = get('remote');
+  if (!s.query || typeof s.query !== "string") {
+    throw new Error('frontmatter "search.query" must be a non-empty string');
+  }
 
   return {
     search: {
-      query,
-      location: get('location'),
-      remote: remoteRaw === 'true' ? true : remoteRaw === 'false' ? false : undefined,
-      experience_level: get('experience_level'),
-      job_type: get('job_type'),
+      query: s.query,
+      location: s.location ?? undefined,
+      remote: typeof s.remote === "boolean" ? s.remote : undefined,
+      experience_level: s.experience_level ?? undefined,
+      job_type: s.job_type ?? undefined,
     },
-    rawContent: content,
+    linkedinProfile: typeof data.linkedinProfile === "string" ? data.linkedinProfile : undefined,
+    rawContent: body.trim(),
   };
 }

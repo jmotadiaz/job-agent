@@ -73,15 +73,25 @@ function extractPersonalInfo(content: string) {
   return { name, jobTitle, email, phone, location, linkedin, website };
 }
 
-function extractJobBulletMap(content: string): Map<string, { jobTitle: string; company: string; period: string }> {
-  const map = new Map<string, { jobTitle: string; company: string; period: string }>();
+function extractJobBulletMap(
+  content: string,
+): Map<string, { jobTitle: string; company: string; period: string }> {
+  const map = new Map<
+    string,
+    { jobTitle: string; company: string; period: string }
+  >();
   const lines = content.split("\n");
   let inExperience = false;
-  let currentJob: { jobTitle: string; company: string; period: string } | null = null;
+  let currentJob: { jobTitle: string; company: string; period: string } | null =
+    null;
   let globalBulletIdx = 0;
 
   for (const line of lines) {
-    if (/^## Experience/i.test(line)) { inExperience = true; continue; }
+    if (/^## Experience/i.test(line)) {
+      inExperience = true;
+      continue;
+    }
+
     if (/^## /.test(line)) inExperience = false;
 
     if (inExperience) {
@@ -97,7 +107,8 @@ function extractJobBulletMap(content: string): Map<string, { jobTitle: string; c
     }
 
     if (/^[-*]\s+/.test(line)) {
-      if (inExperience && currentJob) map.set(`b${globalBulletIdx}`, currentJob);
+      if (inExperience && currentJob)
+        map.set(`b${globalBulletIdx}`, currentJob);
       globalBulletIdx++;
     }
   }
@@ -112,7 +123,10 @@ function extractSkills(content: string) {
     // Match "- **Label**: item1, item2, ..."
     const m = line.match(/^[-*]\s+\*\*([^*]+)\*\*:\s*(.+)/);
     if (m) {
-      const items = m[2].split(/,\s*/).map((s) => s.replace(/\.$/, "").trim()).filter(Boolean);
+      const items = m[2]
+        .split(/,\s*/)
+        .map((s) => s.replace(/\.$/, "").trim())
+        .filter(Boolean);
       categories.push({ label: m[1].trim(), items });
     }
   }
@@ -120,8 +134,10 @@ function extractSkills(content: string) {
 }
 
 function extractEducation(content: string) {
-  const edu: Array<{ institution: string; degree: string; period: string }> = [];
-  const section = content.match(/## Education\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? "";
+  const edu: Array<{ institution: string; degree: string; period: string }> =
+    [];
+  const section =
+    content.match(/## Education\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? "";
 
   for (const line of section.split("\n")) {
     // Format: - **Degree** | Institution | period
@@ -163,25 +179,28 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
 
   const bulletCatalog = extractBulletCatalog(profileContent);
   const personalInfo = extractPersonalInfo(profileContent);
+  const { linkedinProfile } = parseProfile(profileContent);
   const education = extractEducation(profileContent);
   const skillCategories = extractSkills(profileContent);
   const jobBulletMap = extractJobBulletMap(profileContent);
 
   // Build prompt
-  let prompt = `Adapt the CV and cover letter for this position.\n\n`;
   const jobDescription = job.raw_snapshot || job.description_md;
-  prompt += `## Job offer\n${jobDescription}\n\n`;
-  prompt += `## Candidate profile\n${profileContent}\n\n`;
-  prompt += `## Available bullet catalog (use only these bulletIds)\n`;
+  let prompt = `Adapt the CV and cover letter for the offer below. Read the offer first, extract its 3-5 priority requirements, then select and rewrite bullets and skills accordingly. Apply the resume_language_principles, recency budget, and cover_letter structure from your system instructions.\n\n`;
+  prompt += `<job_offer>\n${jobDescription}\n</job_offer>\n\n`;
+  prompt += `<candidate_profile>\n${profileContent}\n</candidate_profile>\n\n`;
+  prompt += `<bullet_catalog note="Only these bulletIds are valid for selectBullets.">\n`;
   for (const b of bulletCatalog) {
     prompt += `- ${b.bulletId}: ${b.originalText}\n`;
   }
+  prompt += `</bullet_catalog>\n\n`;
 
   const flatSkills = skillCategories.flatMap((c) => c.items);
-  prompt += `\n## Available skills catalog (use only these exact strings)\n`;
+  prompt += `<skills_catalog note="Only these exact strings are valid for selectSkills.">\n`;
   for (const s of flatSkills) {
     prompt += `- ${s}\n`;
   }
+  prompt += `</skills_catalog>\n`;
 
   const isIteration = !!parentGenerationId;
 
@@ -190,13 +209,15 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     if (parent) {
       const hasFeedback = parent.feedback_rating != null;
       log.info(MODULE, "parent loaded", { parentGenerationId, hasFeedback });
-      prompt += `\n## Previous generation (as reference for this iteration)\n`;
+      prompt += `\n<previous_generation note="Reference for this iteration. Keep what was working; revise what feedback flags.">\n`;
       prompt += `Selected bullets: ${parent.bullets_json}\n`;
       prompt += `Selected skills: ${parent.skills_json ?? "none"}\n`;
       prompt += `Cover letter body: ${parent.cover_paragraphs_json}\n`;
+      prompt += `</previous_generation>\n`;
       if (feedbackRating) {
-        prompt += `\n## User feedback\nRating: ${feedbackRating}/5\n`;
+        prompt += `\n<user_feedback>\nRating: ${feedbackRating}/5\n`;
         if (feedbackComment) prompt += `Comment: ${feedbackComment}\n`;
+        prompt += `</user_feedback>\n`;
       }
     }
   }
@@ -212,6 +233,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     bullets: null,
     skillItems: null,
     coverParagraphs: null,
+    rationale: null,
     finalized: false,
     availableBulletIds: new Set(bulletCatalog.map((b) => b.bulletId)),
     availableSkills: skillCategories.flatMap((c) => c.items),
@@ -224,7 +246,9 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     const agentDuration = Date.now() - agentT0;
 
     if (!ctx.bullets || !ctx.skillItems || !ctx.coverParagraphs) {
-      throw new Error("Writer agent did not produce bullets, skills, and cover letter");
+      throw new Error(
+        "Writer agent did not produce bullets, skills, and cover letter",
+      );
     }
 
     const coverLen = ctx.coverParagraphs.join("\n").length;
@@ -256,6 +280,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   await renderToFile(
     React.createElement(CvTemplate, {
       ...personalInfo,
+      linkedinUrl: linkedinProfile,
       bullets: enrichedBullets,
       education,
       skillCategories: [{ label: "Skills", items: ctx.skillItems }],
@@ -288,6 +313,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     bullets_json: JSON.stringify(ctx.bullets),
     skills_json: JSON.stringify(ctx.skillItems),
     cover_paragraphs_json: JSON.stringify(ctx.coverParagraphs),
+    rationale_json: ctx.rationale ? JSON.stringify(ctx.rationale) : null,
     parent_generation_id: parentGenerationId ?? null,
     feedback_rating: feedbackRating ?? null,
     feedback_comment: feedbackComment ?? null,

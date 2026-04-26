@@ -45,7 +45,7 @@ export function createScoutAgent(search: SearchConfig) {
   const tools = makeScoutTools(ctx);
 
   const agent = new ToolLoopAgent({
-    model: deepinfra("Qwen/Qwen3.6-35B-A3B"),
+    model: deepinfra("deepseek-ai/DeepSeek-V4-Flash"),
     instructions: INSTRUCTIONS,
     tools,
     stopWhen: (state) => {

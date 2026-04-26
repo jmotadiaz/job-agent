@@ -7,6 +7,7 @@ import {
   View,
   StyleSheet,
   Font,
+  Link,
 } from "@react-pdf/renderer";
 
 // Disable hyphenation to prevent splitting words (e.g., ENGI-NEER)
@@ -59,7 +60,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   name: {
-    fontSize: 30,
+    fontSize: 26,
     fontFamily: "Montserrat",
     fontWeight: "bold",
     color: PRIMARY,
@@ -82,15 +83,24 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     color: PRIMARY,
     textTransform: "uppercase",
-    marginBottom: 20,
-    marginTop: 30,
+    marginBottom: 14,
+    marginTop: 20,
   },
   sectionDivider: {
     borderBottom: "0.5pt solid " + DIVIDER,
-    marginBottom: 15,
+    marginBottom: 10,
   },
   expBlock: {
-    marginBottom: 30,
+    marginBottom: 20,
+  },
+  linkedinNote: {
+    fontSize: 8,
+    color: MUTED,
+    marginTop: 2,
+  },
+  linkedinLink: {
+    color: ACCENT,
+    textDecoration: "underline",
   },
   expCompany: {
     fontSize: 10,
@@ -110,6 +120,7 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat",
     fontWeight: "bold",
     color: PRIMARY,
+    flex: 1,
   },
   expPeriod: {
     fontSize: 10,
@@ -194,6 +205,7 @@ export interface CvTemplateProps {
   phone?: string;
   location?: string;
   linkedin?: string;
+  linkedinUrl?: string;
   website?: string;
   summary?: string;
   bullets: BulletItem[];
@@ -247,6 +259,7 @@ export function CvTemplate({
   phone,
   location,
   linkedin,
+  linkedinUrl,
   website,
   summary,
   bullets,
@@ -350,6 +363,19 @@ export function CvTemplate({
                       {desc}
                     </Text>
                   ))}
+                </View>
+              )}
+
+              {/* LinkedIn footer */}
+              {linkedinUrl && (
+                <View>
+                  <View style={styles.sectionDivider} />
+                  <Text style={styles.linkedinNote}>
+                    See full experience on{" "}
+                    <Link style={styles.linkedinLink} src={linkedinUrl}>
+                      LinkedIn
+                    </Link>
+                  </Text>
                 </View>
               )}
             </>

@@ -50,5 +50,10 @@ export function migrate(): void {
     log.info("db", "migrate: added generations.skills_json");
   }
 
+  if (!colNames.has("rationale_json")) {
+    db.exec(`ALTER TABLE generations ADD COLUMN rationale_json TEXT NULL`);
+    log.info("db", "migrate: added generations.rationale_json");
+  }
+
   log.info("db", "migrate end", { tables: ["jobs", "generations"] });
 }

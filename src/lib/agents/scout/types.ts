@@ -9,13 +9,28 @@ export const JobCardSchema = z.object({
   snippet: z.string(),
 });
 
+export const JobDetailsSchema = z.object({
+  role: z.string(),
+  company: z.string(),
+  location: z.string(),
+  remote: z.string(),
+  contract: z.string(),
+  experience_required: z.string(),
+  role_type: z.string(),
+  primary_tech: z.array(z.string()),
+  secondary_tech: z.array(z.string()),
+  key_responsibilities: z.array(z.string()),
+  salary: z.string(),
+  hard_blockers: z.array(z.string()),
+});
+
 export const JobSummarySchema = z.object({
   external_id: z.string(),
   url: z.string(),
   title: z.string(),
   company: z.string(),
   location: z.string(),
-  summary_md: z.string(),
+  details: JobDetailsSchema,
   raw_len: z.number(),
 });
 
@@ -48,5 +63,16 @@ export const ScoutResultSchema = z.discriminatedUnion('kind', [
 ]);
 
 export type JobCard = z.infer<typeof JobCardSchema>;
+export type JobDetails = z.infer<typeof JobDetailsSchema>;
 export type JobSummary = z.infer<typeof JobSummarySchema>;
 export type ScoutResult = z.infer<typeof ScoutResultSchema>;
+
+export interface ScoutRunContext {
+  search: import("@/lib/profile/parse").SearchConfig;
+  lastSummary: JobSummary | null;
+  lastRawText: string | null;
+  candidateCount: number;
+  noMatchCalled: boolean;
+  saveMatchCalled: boolean;
+  matchResult: { score: number; reason: string } | null;
+}

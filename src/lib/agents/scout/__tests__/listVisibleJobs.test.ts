@@ -36,6 +36,7 @@ function makeCtx(): ScoutRunContext {
   return {
     search: { query: 'software engineer', location: 'Madrid', remote: true },
     lastSummary: null,
+    lastRawText: null,
     candidateCount: 0,
     noMatchCalled: false,
     saveMatchCalled: false,

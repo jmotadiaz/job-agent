@@ -89,20 +89,20 @@ export async function extractJobFromUrl(url: string): Promise<ExtractedJob> {
       messages: [
         {
           role: "user",
-          content: `Extract the following fields from this job description. Be concise and literal — do not infer or invent. If a field is not mentioned, write "Not specified".
+          content: `Extract the following fields from this job description. Be concise and literal — do not infer or invent. If a field is not mentioned, write "Not specified". Return each field as a markdown list item exactly as shown below.
 
-**Role**: [job title]
-**Company**: [company name]
-**Location**: [city/country and whether remote/hybrid/onsite]
-**Remote**: [yes / no / hybrid]
-**Contract**: [full-time / part-time / contract / freelance]
-**Experience required**: [minimum years]
-**Role type**: [frontend / backend / fullstack / other]
-**Primary tech** (required): [main languages, frameworks, tools explicitly required]
-**Secondary tech** (nice-to-have): [technologies listed as optional or bonus]
-**Key responsibilities**: [2-3 short phrases]
-**Salary**: [salary range or compensation if mentioned, otherwise "Not specified"]
-**Hard blockers**: [location restrictions, mandatory languages, specific niche tech with no alternative]
+- Role: [job title]
+- Company: [company name]
+- Location: [city/country and whether remote/hybrid/onsite]
+- Remote: [yes / no / hybrid]
+- Contract: [full-time / part-time / contract / freelance]
+- Experience required: [minimum years]
+- Role type: [frontend / backend / fullstack / other]
+- Primary tech (required): [main languages, frameworks, tools explicitly required]
+- Secondary tech (nice-to-have): [technologies listed as optional or bonus]
+- Key responsibilities: [2-3 short phrases separated by semicolons]
+- Salary: [salary range or compensation if mentioned, otherwise "Not specified"]
+- Hard blockers: [location restrictions, mandatory languages, specific niche tech with no alternative]
 
 Job description:
 ${rawText.slice(0, 8000)}`,
@@ -114,7 +114,7 @@ ${rawText.slice(0, 8000)}`,
     // Parse title/company/location from the LLM output
     const parse = (field: string) => {
       const m = description_md.match(
-        new RegExp(`\\*\\*${field}\\*\\*:\\s*([^\\n]+)`),
+        new RegExp(`^- ${field}:\\s*([^\\n]+)`, "m"),
       );
       const v = m?.[1]?.trim() ?? "";
       return v === "Not specified" || v === "" ? "" : v;

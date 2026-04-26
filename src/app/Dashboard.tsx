@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { Streamdown } from "streamdown";
+import "streamdown/styles.css";
 import {
   Search,
   Zap,
@@ -9,6 +11,7 @@ import {
   Mail,
   MessageSquare,
   ChevronRight,
+  ChevronDown,
   ExternalLink,
   Sparkles,
   Check,
@@ -17,6 +20,7 @@ import {
   Star,
   WandSparkles,
   Link,
+  Lightbulb,
 } from "lucide-react";
 import type { Job } from "@/lib/db/jobs";
 import type { Generation } from "@/lib/db/generations";
@@ -61,7 +65,7 @@ function buildTree(generations: Generation[]): GenerationNode[] {
 }
 
 function parseDescriptionField(md: string, field: string): string | null {
-  const m = md.match(new RegExp(`\\*\\*${field}\\*\\*:\\s*([^\\n]+)`));
+  const m = md.match(new RegExp(`^- ${field}:\\s*([^\\n]+)`, "m"));
   if (!m) return null;
   const v = m[1].trim();
   return v === "Not specified" || v === "" ? null : v;
@@ -276,6 +280,112 @@ function FeedbackForm({
   );
 }
 
+// ─── Rationale UI ────────────────────────────────────────────────────────────
+
+interface Rationale {
+  priorityRequirements: string[];
+  bulletsRationale: string;
+  skillsRationale: string;
+  coverLetterRationale: string;
+}
+
+function parseRationale(json: string | null): Rationale | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as Partial<Rationale>;
+    if (
+      Array.isArray(parsed.priorityRequirements) &&
+      typeof parsed.bulletsRationale === "string" &&
+      typeof parsed.skillsRationale === "string" &&
+      typeof parsed.coverLetterRationale === "string"
+    ) {
+      return parsed as Rationale;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function RationalePanel({ rationale }: { rationale: Rationale }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-4 border-t border-(--border-subtle) pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="btn btn-ghost btn-sm w-full justify-start !px-2 !py-2.5 hover:!bg-(--bg-hover) group transition-all duration-200"
+        aria-expanded={open}
+      >
+        <div className="flex items-center gap-3 w-full">
+          <div className={`p-1.5 rounded-sm transition-colors duration-200 ${open ? "bg-(--accent) text-(--accent-foreground)" : "bg-(--bg-hover) text-(--text-secondary) group-hover:bg-(--accent) group-hover:text-(--accent-foreground)"}`}>
+            <Lightbulb size={14} />
+          </div>
+          <span className="font-semibold tracking-wide text-[11px] uppercase text-(--text-secondary) group-hover:text-(--text-primary)">
+            Criterios de generación (AI Rationale)
+          </span>
+          {open ? (
+            <ChevronDown size={14} className="ml-auto opacity-50" />
+          ) : (
+            <ChevronRight size={14} className="ml-auto opacity-50" />
+          )}
+        </div>
+      </button>
+      {open && (
+        <div className="mt-3 grid gap-4 fade-in">
+          {rationale.priorityRequirements.length > 0 && (
+            <div className="px-4 py-3.5 bg-(--bg-raised) rounded-sm border-l-2 border-l-(--blue) space-y-2">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-(--blue) mb-1.5">
+                <Zap size={12} fill="currentColor" />
+                Requisitos prioritarios detectados
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {rationale.priorityRequirements.map((r, i) => (
+                  <span key={i} className="px-2 py-0.5 bg-(--blue-bg) border border-[rgba(147,197,253,0.1)] rounded-full text-[11px] text-(--blue)">
+                    {r}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="px-3.5 py-3 bg-(--bg-raised) rounded-sm border-l-2 border-l-(--text-muted) space-y-2">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-(--text-muted) mb-1">
+                <FileText size={12} />
+                CV Bullets
+              </div>
+              <p className="text-[11px] leading-relaxed text-(--text-secondary)">
+                {rationale.bulletsRationale}
+              </p>
+            </div>
+
+            <div className="px-3.5 py-3 bg-(--bg-raised) rounded-sm border-l-2 border-l-(--text-muted) space-y-2">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-(--text-muted) mb-1">
+                <WandSparkles size={12} />
+                Skills
+              </div>
+              <p className="text-[11px] leading-relaxed text-(--text-secondary)">
+                {rationale.skillsRationale}
+              </p>
+            </div>
+
+            <div className="px-3.5 py-3 bg-(--bg-raised) rounded-sm border-l-2 border-l-(--text-muted) space-y-2">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-(--text-muted) mb-1">
+                <Mail size={12} />
+                Cover Letter
+              </div>
+              <p className="text-[11px] leading-relaxed text-(--text-secondary)">
+                {rationale.coverLetterRationale}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── GenerationNode UI ────────────────────────────────────────────────────────
 
 function GenerationNodeView({
@@ -335,7 +445,7 @@ function GenerationNodeView({
 
         {node.feedback_comment && (
           <div className="text-xs text-[var(--text-secondary)] italic mt-1 mb-3 px-3.5 py-2.5 bg-[var(--bg-primary)] rounded-sm border-l-2 border-l-[var(--border)]">
-            "{node.feedback_comment}"
+            &ldquo;{node.feedback_comment}&rdquo;
           </div>
         )}
 
@@ -357,6 +467,11 @@ function GenerationNodeView({
             <Mail size={14} /> Download Cover
           </a>
         </div>
+
+        {(() => {
+          const rationale = parseRationale(node.rationale_json);
+          return rationale ? <RationalePanel rationale={rationale} /> : null;
+        })()}
 
         <FeedbackForm
           generationId={node.id}
@@ -402,12 +517,18 @@ function JobRow({
   // Load generations when expanded
   useEffect(() => {
     if (!expanded || generations !== null) return;
-    setLoadingGens(true);
-    fetch(`/api/jobs/${job.id}`)
-      .then((r) => r.json())
-      .then((d) => setGenerations(d.generations ?? []))
-      .catch(() => setGenerations([]))
-      .finally(() => setLoadingGens(false));
+    (async () => {
+      setLoadingGens(true);
+      try {
+        const r = await fetch(`/api/jobs/${job.id}`);
+        const d = await r.json();
+        setGenerations(d.generations ?? []);
+      } catch {
+        setGenerations([]);
+      } finally {
+        setLoadingGens(false);
+      }
+    })();
   }, [expanded, job.id, generations]);
 
   const handleGenerate = useCallback(async () => {
@@ -430,8 +551,8 @@ function JobRow({
           cover_path: "",
           bullets_json: "[]",
           skills_json: "[]",
-          skills_json: "[]",
           cover_paragraphs_json: "[]",
+          rationale_json: null,
           created_at: Date.now(),
           parent_generation_id: null,
           feedback_rating: null,
@@ -492,8 +613,6 @@ function JobRow({
       (a, b) => (a.created_at > b.created_at ? a : b),
       generations[0],
     )?.id ?? "";
-
-  const { company, location, salary } = jobSubtitle(job);
 
   return (
     <div className="card fade-in mb-5 overflow-hidden">
@@ -563,7 +682,7 @@ function JobRow({
 
         {/* Actions (stop propagation to avoid toggle) */}
         <div
-          className="flex gap-2 flex-shrink-0"
+          className="flex gap-2 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
           <a
@@ -603,8 +722,8 @@ function JobRow({
             <summary className="cursor-pointer text-[13px] text-[var(--text-secondary)] font-medium mb-1.5">
               Job summary
             </summary>
-            <div className="text-[13px] leading-[1.7] text-[var(--text-secondary)] whitespace-pre-wrap py-2">
-              {job.description_md}
+            <div className="text-[13px] leading-[1.7] text-[var(--text-secondary)] py-2">
+              <Streamdown mode="static">{job.description_md}</Streamdown>
             </div>
           </details>
 

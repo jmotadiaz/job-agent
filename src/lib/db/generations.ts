@@ -10,6 +10,7 @@ export interface Generation {
   bullets_json: string;
   skills_json: string;
   cover_paragraphs_json: string;
+  rationale_json: string | null;
   created_at: number;
   parent_generation_id: string | null;
   feedback_rating: number | null;
@@ -25,6 +26,7 @@ export interface InsertGenerationInput {
   bullets_json: string;
   skills_json: string;
   cover_paragraphs_json: string;
+  rationale_json?: string | null;
   parent_generation_id?: string | null;
   feedback_rating?: number | null;
   feedback_comment?: string | null;
@@ -36,6 +38,7 @@ export function insertGeneration(input: InsertGenerationInput): Generation {
   const row = {
     ...input,
     created_at: now,
+    rationale_json: input.rationale_json ?? null,
     parent_generation_id: input.parent_generation_id ?? null,
     feedback_rating: input.feedback_rating ?? null,
     feedback_comment: input.feedback_comment ?? null,
@@ -43,8 +46,8 @@ export function insertGeneration(input: InsertGenerationInput): Generation {
   try {
     db.prepare(
       `
-      INSERT INTO generations (id, job_id, profile_hash, cv_path, cover_path, bullets_json, skills_json, cover_paragraphs_json, created_at, parent_generation_id, feedback_rating, feedback_comment)
-      VALUES (@id, @job_id, @profile_hash, @cv_path, @cover_path, @bullets_json, @skills_json, @cover_paragraphs_json, @created_at, @parent_generation_id, @feedback_rating, @feedback_comment)
+      INSERT INTO generations (id, job_id, profile_hash, cv_path, cover_path, bullets_json, skills_json, cover_paragraphs_json, rationale_json, created_at, parent_generation_id, feedback_rating, feedback_comment)
+      VALUES (@id, @job_id, @profile_hash, @cv_path, @cover_path, @bullets_json, @skills_json, @cover_paragraphs_json, @rationale_json, @created_at, @parent_generation_id, @feedback_rating, @feedback_comment)
     `,
     ).run(row);
     log.info("db", "generations insertGeneration", {
