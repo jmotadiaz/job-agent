@@ -10,6 +10,15 @@ import type { JobDetails, ScoutResult } from "./types";
 
 const MODULE = "scout/orchestrator";
 
+let lastUsedQuery: string | null = null;
+
+function pickNextQuery(queries: string[]): string {
+  if (lastUsedQuery === null) return queries[0];
+  const idx = queries.indexOf(lastUsedQuery);
+  if (idx === -1 || idx === queries.length - 1) return queries[0];
+  return queries[idx + 1];
+}
+
 function detailsToMd(d: JobDetails): string {
   return [
     `- Role: ${d.role}`,
@@ -36,7 +45,8 @@ export async function runScout(): Promise<ScoutResult> {
   });
 
   const { search, rawContent } = parseProfile(profileContent);
-  const query = search.query;
+  const query = pickNextQuery(search.queries);
+  lastUsedQuery = query;
 
   const { agent, ctx } = createScoutAgent(search);
   resetBrowserState();

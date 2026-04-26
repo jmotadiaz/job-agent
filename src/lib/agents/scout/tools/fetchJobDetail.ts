@@ -159,7 +159,7 @@ export function makeFetchJobDetailTool(ctx: ScoutRunContext) {
           return { error: "Job description not found or too short", url };
         }
 
-        const llmModel = "google/gemma-4-31B-it";
+        const llmModel = "openai/gpt-oss-20b";
         const llmT0 = Date.now();
 
         const { object: extracted } = await generateObject({

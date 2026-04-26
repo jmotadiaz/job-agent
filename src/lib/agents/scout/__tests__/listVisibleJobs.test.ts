@@ -34,7 +34,7 @@ import type { ScoutRunContext } from '../tools';
 
 function makeCtx(): ScoutRunContext {
   return {
-    search: { query: 'software engineer', location: 'Madrid', remote: true },
+    search: { queries: ['software engineer'], location: 'Madrid', remote: true },
     lastSummary: null,
     lastRawText: null,
     candidateCount: 0,

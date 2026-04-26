@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   name: {
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: "Montserrat",
     fontWeight: "bold",
     color: PRIMARY,
