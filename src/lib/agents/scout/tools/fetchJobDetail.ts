@@ -51,7 +51,7 @@ const MODULE = "scout/tool";
 export function makeFetchJobDetailTool(ctx: ScoutRunContext) {
   return tool({
     description:
-      "Navigate to the offer's detail page, extract the description, and return a markdown summary of 6-10 bullets.",
+      "Navigate to the offer's detail page, extract the full description, and return a structured summary with fields: role, company, location, remote, contract, experience_required, role_type, primary_tech, secondary_tech, key_responsibilities, salary, hard_blockers.",
     inputSchema: z.object({
       url: z.string().url(),
     }),
