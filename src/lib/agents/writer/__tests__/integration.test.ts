@@ -10,9 +10,16 @@ vi.mock('@/lib/profile/load', () => ({
 
 vi.mock('@/lib/profile/parse', () => ({
   parseProfile: vi.fn(() => ({
-    search: { query: 'software engineer' },
+    search: { queries: ['software engineer'] },
+    profile: {
+      name: 'Test Name',
+      role: 'Test Role',
+      email: 'test@example.com',
+      phone: '123456789',
+      location: 'Test Location',
+      linkedinUrl: 'https://linkedin.com/in/test'
+    },
     rawContent: '# Profile',
-    bulletCatalog: [{ bulletId: 'b0', text: 'Skill 1' }],
   })),
 }));
 
@@ -75,15 +82,17 @@ describe('Writer integration (Orchestrator Test)', () => {
   });
 
   it('generates files when agent finalizes', async () => {
-    vi.mocked(createWriterAgent).mockReturnValue({
-      generate: vi.fn().mockResolvedValue({}),
-      ctx: {
-        finalized: true,
-        bullets: [{ bulletId: 'b0', renderedText: 'Adaptation' }],
-        skillItems: ['React', 'TypeScript'],
-        coverParagraphs: ['P1', 'P2'],
-      } as any,
-    } as any);
+    vi.mocked(createWriterAgent).mockImplementation((ctx: any) => {
+      ctx.experience = [{ company: 'C1', role: 'R1', period: 'P1', bullets: ['B1'] }];
+      ctx.skills = ['React', 'TypeScript'];
+      ctx.education = [{ institution: 'U1', degree: 'D1', period: '2020' }];
+      ctx.coverParagraphs = ['P1', 'P2'];
+      ctx.rationale = { priorityRequirements: ['R1'], text: 'Rationale text' };
+      ctx.finalized = true;
+      return {
+        generate: vi.fn().mockResolvedValue({}),
+      } as any;
+    });
 
     const result = await runWriter({ jobId: 'job1' });
 

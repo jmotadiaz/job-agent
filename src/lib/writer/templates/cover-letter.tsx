@@ -1,6 +1,13 @@
-import React from 'react';
-import path from 'path';
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import React from "react";
+import path from "path";
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+  Font,
+} from "@react-pdf/renderer";
 
 // Disable hyphenation to prevent splitting words
 Font.registerHyphenationCallback((word) => [word]);
@@ -9,10 +16,13 @@ const fontsDir = path.join(process.cwd(), "src/lib/writer/templates/fonts");
 
 // Register Montserrat font using local files to avoid network issues
 Font.register({
-  family: 'Montserrat',
+  family: "Montserrat",
   fonts: [
     { src: path.join(fontsDir, "montserrat-v31-latin-regular.ttf") },
-    { src: path.join(fontsDir, "montserrat-v31-latin-700.ttf"), fontWeight: 700 },
+    {
+      src: path.join(fontsDir, "montserrat-v31-latin-700.ttf"),
+      fontWeight: 700,
+    },
   ],
 });
 
@@ -104,11 +114,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: 10,
     color: PRIMARY,
-  }
+  },
 });
 
 export interface CoverLetterTemplateProps {
   senderName: string;
+  senderRole?: string;
   senderEmail?: string;
   senderPhone?: string;
   senderLinkedin?: string;
@@ -120,6 +131,7 @@ export interface CoverLetterTemplateProps {
 
 export function CoverLetterTemplate({
   senderName,
+  senderRole,
   senderEmail,
   senderPhone,
   senderLinkedin,
@@ -128,9 +140,19 @@ export function CoverLetterTemplate({
   paragraphs,
   date,
 }: CoverLetterTemplateProps) {
-  const contacts = [senderEmail, senderPhone, senderLinkedin].filter(Boolean) as string[];
-  const salutation = companyName ? `Dear ${companyName} Hiring Team,` : 'Dear Hiring Team,';
-  const dateStr = date ?? new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const contacts = [senderEmail, senderPhone, senderLinkedin].filter(
+    Boolean,
+  ) as string[];
+  const salutation = companyName
+    ? `Dear ${companyName} Hiring Team,`
+    : "Dear Hiring Team,";
+  const dateStr =
+    date ??
+    new Date().toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
   return (
     <Document>
@@ -138,7 +160,7 @@ export function CoverLetterTemplate({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.name}>{senderName}</Text>
-          {jobTitle && <Text style={styles.jobTitleText}>{jobTitle}</Text>}
+          {senderRole && <Text style={styles.jobTitleText}>{senderRole}</Text>}
         </View>
 
         <View style={styles.divider} />
@@ -149,7 +171,9 @@ export function CoverLetterTemplate({
           <Text style={styles.salutation}>{salutation}</Text>
 
           {paragraphs.map((p, i) => (
-            <Text key={i} style={styles.paragraph}>{p}</Text>
+            <Text key={i} style={styles.paragraph}>
+              {p}
+            </Text>
           ))}
 
           <View style={{ marginTop: 25 }}>
@@ -161,7 +185,9 @@ export function CoverLetterTemplate({
         {/* Footer */}
         <View style={styles.footer}>
           {contacts.map((c, i) => (
-            <Text key={i} style={styles.contactItem}>{c}</Text>
+            <Text key={i} style={styles.contactItem}>
+              {c}
+            </Text>
           ))}
           <Text style={styles.thanks}>Thanks again for your time.</Text>
         </View>

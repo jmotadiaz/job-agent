@@ -8,9 +8,19 @@ export interface SearchConfig {
   job_type?: string;
 }
 
+export interface ProfileInfo {
+  name: string;
+  role: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedinUrl: string;
+  website?: string | null;
+}
+
 export interface ParsedProfile {
   search: SearchConfig;
-  linkedinProfile?: string;
+  profile: ProfileInfo;
   rawContent: string;
 }
 
@@ -34,6 +44,26 @@ export function parseProfile(content: string): ParsedProfile {
     throw new Error('frontmatter "search" must contain a non-empty "queries" list');
   }
 
+  // Handle legacy linkedinProfile
+  if (data.linkedinProfile && !data.profile?.linkedinUrl) {
+    console.warn('WARNING: "linkedinProfile" at the root of frontmatter is deprecated. Move it to "profile.linkedinUrl".');
+  }
+
+  const p = data.profile;
+  if (!p || typeof p !== "object") {
+    throw new Error('profile.md must contain a frontmatter "profile" section with personal details');
+  }
+
+  const requiredFields: (keyof ProfileInfo)[] = ["name", "role", "email", "phone", "location", "linkedinUrl"];
+  for (const field of requiredFields) {
+    if (!p[field] && field === "linkedinUrl" && data.linkedinProfile) {
+      p[field] = data.linkedinProfile; // Fallback for transition
+    }
+    if (!p[field]) {
+      throw new Error(`frontmatter "profile" is missing required field: "${field}"`);
+    }
+  }
+
   return {
     search: {
       queries,
@@ -42,7 +72,15 @@ export function parseProfile(content: string): ParsedProfile {
       experience_level: s.experience_level ?? undefined,
       job_type: s.job_type ?? undefined,
     },
-    linkedinProfile: typeof data.linkedinProfile === "string" ? data.linkedinProfile : undefined,
+    profile: {
+      name: p.name,
+      role: p.role,
+      email: p.email,
+      phone: p.phone,
+      location: p.location,
+      linkedinUrl: p.linkedinUrl,
+      website: p.website ?? null,
+    },
     rawContent: body.trim(),
   };
 }

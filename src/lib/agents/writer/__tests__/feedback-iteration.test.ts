@@ -71,7 +71,16 @@ vi.mock("@/lib/profile/hash", () => ({
 
 vi.mock("@/lib/profile/parse", () => ({
   parseProfile: vi.fn(() => ({
-    search: { query: "frontend engineer" },
+    search: { queries: ["frontend engineer"] },
+    profile: {
+      name: "Jane Doe",
+      role: "Frontend Engineer",
+      email: "jane@example.com",
+      phone: "123456789",
+      location: "Remote",
+      linkedinUrl: "https://linkedin.com/in/jane",
+      website: null
+    },
     rawContent: FIXTURE_PROFILE,
   })),
 }));
@@ -152,14 +161,17 @@ function setFakeRun(
   (ToolLoopAgent as FakeClass)._fakeRun = fn;
 }
 
-function makeBulletsRun(
-  items: Array<{ bulletId: string; renderedText: string }>,
+function makeAgentRun(
+  experience: Array<{ company: string; role: string; period: string; bullets: string[] }>,
 ) {
   return async (tools: Record<string, { execute: Function }>) => {
-    await tools.selectBullets.execute({ items }, {} as never);
-    await tools.selectSkills.execute(
-      { items: ["React", "TypeScript"] },
-      {} as never,
+    await tools.composeCV.execute(
+      { 
+        experience,
+        skills: ["React", "TypeScript"],
+        education: [{ institution: "U1", degree: "D1", period: "2020" }]
+      }, 
+      {} as never
     );
     await tools.composeCoverLetter.execute(
       {
@@ -170,19 +182,15 @@ function makeBulletsRun(
       },
       {} as never,
     );
-    await tools.composeRationale.execute(
+    await tools.finalizeGeneration.execute(
       {
-        priorityRequirements: ["React", "TypeScript", "Frontend a escala"],
-        bulletsRationale:
-          "Se priorizan bullets de React por matching directo con la oferta.",
-        skillsRationale:
-          "React y TypeScript van primero por exigencia explicita de la oferta.",
-        coverLetterRationale:
-          "Hook centrado en experiencia React; cierre breve enlazando con la mision de CoolCo.",
+        rationale: {
+          priorityRequirements: ["React", "TypeScript", "Frontend a escala"],
+          text: "Se priorizan bullets de React por matching directo con la oferta."
+        },
       },
       {} as never,
     );
-    await tools.finalizeGeneration.execute({}, {} as never);
   };
 }
 
@@ -199,8 +207,8 @@ describe("Writer feedback & iteration integration", () => {
 
   it("(a) generates first version with no parent", async () => {
     setFakeRun(
-      makeBulletsRun([
-        { bulletId: "b0", renderedText: "Built React apps for 2M+ users" },
+      makeAgentRun([
+        { company: "CoolCo", role: "Frontend Engineer", period: "2020-2024", bullets: ["Built React apps for 2M+ users"] },
       ]),
     );
 
@@ -226,8 +234,8 @@ describe("Writer feedback & iteration integration", () => {
   it("(b) feedback + iteration produces child row with correct metadata", async () => {
     // Generate parent
     setFakeRun(
-      makeBulletsRun([
-        { bulletId: "b0", renderedText: "Built React apps for 2M+ users" },
+      makeAgentRun([
+        { company: "CoolCo", role: "Frontend Engineer", period: "2020-2024", bullets: ["Built React apps for 2M+ users"] },
       ]),
     );
     const parentResult = await runWriter({ jobId: "job-feedback-1" });
@@ -236,11 +244,8 @@ describe("Writer feedback & iteration integration", () => {
 
     // Generate child with feedback
     setFakeRun(
-      makeBulletsRun([
-        {
-          bulletId: "b1",
-          renderedText: "Led design system adoption — improved dev velocity",
-        },
+      makeAgentRun([
+        { company: "CoolCo", role: "Frontend Engineer", period: "2020-2024", bullets: ["Led design system adoption — improved dev velocity"] },
       ]),
     );
     const childResult = await runWriter({
@@ -272,11 +277,8 @@ describe("Writer feedback & iteration integration", () => {
   it("(c) two iterations from same parent are siblings", async () => {
     // Generate parent
     setFakeRun(
-      makeBulletsRun([
-        {
-          bulletId: "b0",
-          renderedText: "Built React apps for millions of users",
-        },
+      makeAgentRun([
+        { company: "C1", role: "R1", period: "P1", bullets: ["Built React apps for millions of users"] },
       ]),
     );
     const parentResult = await runWriter({ jobId: "job-feedback-1" });
@@ -285,8 +287,8 @@ describe("Writer feedback & iteration integration", () => {
 
     // First child
     setFakeRun(
-      makeBulletsRun([
-        { bulletId: "b0", renderedText: "Built scalable React apps" },
+      makeAgentRun([
+        { company: "C1", role: "R1", period: "P1", bullets: ["Built scalable React apps"] },
       ]),
     );
     const child1 = await runWriter({
@@ -298,8 +300,8 @@ describe("Writer feedback & iteration integration", () => {
 
     // Second child (from same parent)
     setFakeRun(
-      makeBulletsRun([
-        { bulletId: "b1", renderedText: "Led design system for 3 teams" },
+      makeAgentRun([
+        { company: "C1", role: "R1", period: "P1", bullets: ["Led design system for 3 teams"] },
       ]),
     );
     const child2 = await runWriter({
@@ -346,7 +348,7 @@ describe("Writer feedback & iteration integration", () => {
     const { insertGeneration: realInsert } =
       await import("@/lib/db/generations");
     setFakeRun(
-      makeBulletsRun([{ bulletId: "b0", renderedText: "Built React apps" }]),
+      makeAgentRun([{ company: "C1", role: "R1", period: "P1", bullets: ["Built React apps"] }]),
     );
     const result = await runWriter({ jobId: "job-feedback-1" });
     if (result.kind !== "success") throw new Error("Generation failed");

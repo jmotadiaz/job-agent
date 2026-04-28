@@ -28,141 +28,6 @@ export type WriterOutput =
   | { kind: "success"; generationId: string; cvUrl: string; coverUrl: string }
   | { kind: "error"; message: string };
 
-function extractBulletCatalog(
-  profileContent: string,
-): Array<{ bulletId: string; originalText: string }> {
-  const catalog: Array<{ bulletId: string; originalText: string }> = [];
-  const lines = profileContent.split("\n");
-  let bulletIdx = 0;
-  for (const line of lines) {
-    const m = line.match(/^[-*]\s+(.+)/);
-    if (m) {
-      catalog.push({ bulletId: `b${bulletIdx}`, originalText: m[1].trim() });
-      bulletIdx++;
-    }
-  }
-  return catalog;
-}
-
-function extractPersonalInfo(content: string) {
-  // Parse "# Name - Job Title" heading
-  const headingMatch = content.match(/^#\s+(.+?)(?:\s+[-–]\s+(.+))?$/m);
-  const name = headingMatch?.[1]?.trim() ?? "Candidate";
-  const jobTitle = headingMatch?.[2]?.trim();
-
-  // Find first line containing | (contact line)
-  const contactLine = content.match(/^[^#\n].+\|.+$/m)?.[0] ?? "";
-  const parts = contactLine.split("|").map((p) => p.trim());
-
-  let email: string | undefined;
-  let phone: string | undefined;
-  let location: string | undefined;
-  let linkedin: string | undefined;
-  let website: string | undefined;
-
-  for (const part of parts) {
-    // Strip markdown link syntax, keep display text
-    const clean = part.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
-    if (clean.includes("@")) email = clean;
-    else if (/^\+?\d[\d\s()./-]{5,}/.test(clean)) phone = clean;
-    else if (/linkedin/i.test(clean)) linkedin = clean;
-    else if (/https?:\/\/|^www\./i.test(clean)) website = clean;
-    else if (clean && !location) location = clean;
-  }
-
-  return { name, jobTitle, email, phone, location, linkedin, website };
-}
-
-function extractJobBulletMap(
-  content: string,
-): Map<string, { jobTitle: string; company: string; period: string }> {
-  const map = new Map<
-    string,
-    { jobTitle: string; company: string; period: string }
-  >();
-  const lines = content.split("\n");
-  let inExperience = false;
-  let currentJob: { jobTitle: string; company: string; period: string } | null =
-    null;
-  let globalBulletIdx = 0;
-
-  for (const line of lines) {
-    if (/^## Experience/i.test(line)) {
-      inExperience = true;
-      continue;
-    }
-
-    if (/^## /.test(line)) inExperience = false;
-
-    if (inExperience) {
-      // ### Company | Role | Period
-      const jobMatch = line.match(/^###\s+([^|]+)\|\s*([^|]+)\|\s*(.+)$/);
-      if (jobMatch) {
-        currentJob = {
-          company: jobMatch[1].trim(),
-          jobTitle: jobMatch[2].trim(),
-          period: jobMatch[3].trim(),
-        };
-      }
-    }
-
-    if (/^[-*]\s+/.test(line)) {
-      if (inExperience && currentJob)
-        map.set(`b${globalBulletIdx}`, currentJob);
-      globalBulletIdx++;
-    }
-  }
-
-  return map;
-}
-
-function extractSkills(content: string) {
-  const section = content.match(/## Skills\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? "";
-  const categories: Array<{ label: string; items: string[] }> = [];
-  for (const line of section.split("\n")) {
-    // Match "- **Label**: item1, item2, ..."
-    const m = line.match(/^[-*]\s+\*\*([^*]+)\*\*:\s*(.+)/);
-    if (m) {
-      const items = m[2]
-        .split(/,\s*/)
-        .map((s) => s.replace(/\.$/, "").trim())
-        .filter(Boolean);
-      categories.push({ label: m[1].trim(), items });
-    }
-  }
-  return categories;
-}
-
-function extractEducation(content: string) {
-  const edu: Array<{ institution: string; degree: string; period: string }> =
-    [];
-  const section =
-    content.match(/## Education\s+([\s\S]*?)(?=\n##|$)/i)?.[1] ?? "";
-
-  for (const line of section.split("\n")) {
-    // Format: - **Degree** | Institution | period
-    const m = line.match(/^[-*]\s+\*\*([^*]+)\*\*\s*\|\s*([^|]+)\|\s*(.+)$/);
-    if (m) {
-      edu.push({
-        degree: m[1].trim(),
-        institution: m[2].trim(),
-        period: m[3].trim(),
-      });
-      continue;
-    }
-    // Format: ### Institution | Role | period
-    const m2 = line.match(/^###\s+([^|]+)\|\s*([^|]+)\|\s*(.+)$/);
-    if (m2) {
-      edu.push({
-        institution: m2[1].trim(),
-        degree: m2[2].trim(),
-        period: m2[3].trim(),
-      });
-    }
-  }
-  return edu;
-}
-
 export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   const { jobId, parentGenerationId, feedbackRating, feedbackComment } = input;
 
@@ -177,30 +42,13 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     length: profileContent.length,
   });
 
-  const bulletCatalog = extractBulletCatalog(profileContent);
-  const personalInfo = extractPersonalInfo(profileContent);
-  const { linkedinProfile } = parseProfile(profileContent);
-  const education = extractEducation(profileContent);
-  const skillCategories = extractSkills(profileContent);
-  const jobBulletMap = extractJobBulletMap(profileContent);
+  const { profile } = parseProfile(profileContent);
 
   // Build prompt
   const jobDescription = job.raw_snapshot || job.description_md;
-  let prompt = `Adapt the CV and cover letter for the offer below. Read the offer first, extract its 3-5 priority requirements, then select and rewrite bullets and skills accordingly. Apply the resume_language_principles, recency budget, and cover_letter structure from your system instructions.\n\n`;
+  let prompt = `Adapt the CV and cover letter for the offer below. Read the offer first, extract its 3-5 priority requirements, then compose the experience, skills, and education accordingly. Apply the resume_language_principles, recency budget, and cover_letter structure from your system instructions.\n\n`;
   prompt += `<job_offer>\n${jobDescription}\n</job_offer>\n\n`;
-  prompt += `<candidate_profile>\n${profileContent}\n</candidate_profile>\n\n`;
-  prompt += `<bullet_catalog note="Only these bulletIds are valid for selectBullets.">\n`;
-  for (const b of bulletCatalog) {
-    prompt += `- ${b.bulletId}: ${b.originalText}\n`;
-  }
-  prompt += `</bullet_catalog>\n\n`;
-
-  const flatSkills = skillCategories.flatMap((c) => c.items);
-  prompt += `<skills_catalog note="Only these exact strings are valid for selectSkills.">\n`;
-  for (const s of flatSkills) {
-    prompt += `- ${s}\n`;
-  }
-  prompt += `</skills_catalog>\n`;
+  prompt += `<candidate_profile>\n${profileContent}\n</candidate_profile>\n`;
 
   const isIteration = !!parentGenerationId;
 
@@ -223,38 +71,70 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   }
 
   const mode = isIteration ? "iteration" : "initial";
+
   log.info(MODULE, "agent invoke begin", {
     mode,
     jobId,
-    bulletCount: bulletCatalog.length,
+    promptLen: prompt.length,
   });
 
   const ctx: WriterRunContext = {
-    bullets: null,
-    skillItems: null,
+    experience: null,
+    skills: null,
+    education: null,
     coverParagraphs: null,
     rationale: null,
     finalized: false,
-    availableBulletIds: new Set(bulletCatalog.map((b) => b.bulletId)),
-    availableSkills: skillCategories.flatMap((c) => c.items),
   };
 
   try {
     const agent = createWriterAgent(ctx, isIteration);
+    log.info(MODULE, "agent created", { mode });
     const agentT0 = Date.now();
-    await agent.generate({ prompt });
+
+    await agent.generate({
+      prompt,
+      onStepFinish: (step) => {
+        log.info(MODULE, `agent step ${step.stepNumber} finish`, {
+          finishReason: step.finishReason,
+          usage: step.usage,
+          text:
+            step.text?.slice(0, 100) + (step.text?.length > 100 ? "..." : ""),
+          reasoning: (step as any).reasoningText?.slice(0, 100), // Catch reasoning if present
+          toolCalls: step.toolCalls?.map((tc) => ({
+            tool: tc.toolName,
+            args: tc.input,
+          })),
+        });
+
+        if (step.toolResults && step.toolResults.length > 0) {
+          step.toolResults.forEach((tr) => {
+            log.info(MODULE, `tool result: ${tr.toolName}`, {
+              args: tr.input,
+              result: tr.output,
+            });
+          });
+        }
+      },
+    });
+
     const agentDuration = Date.now() - agentT0;
 
-    if (!ctx.bullets || !ctx.skillItems || !ctx.coverParagraphs) {
+    if (
+      !ctx.experience ||
+      !ctx.skills ||
+      !ctx.education ||
+      !ctx.coverParagraphs
+    ) {
       throw new Error(
-        "Writer agent did not produce bullets, skills, and cover letter",
+        "Writer agent did not produce experience, skills, education, and cover letter",
       );
     }
 
     const coverLen = ctx.coverParagraphs.join("\n").length;
     log.info(MODULE, "agent result", {
       mode,
-      bulletCount: ctx.bullets.length,
+      experienceCount: ctx.experience.length,
       coverLen,
       duration: agentDuration,
     });
@@ -271,19 +151,29 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   const cvPath = path.join(outDir, "cv.pdf");
   const coverPath = path.join(outDir, "cover.pdf");
 
-  const enrichedBullets = ctx.bullets.map((b) => ({
-    ...b,
-    ...(jobBulletMap.get(b.bulletId) ?? {}),
-  }));
+  const flatBullets = ctx.experience.flatMap((e) =>
+    e.bullets.map((text) => ({
+      company: e.company,
+      jobTitle: e.role,
+      period: e.period,
+      renderedText: text,
+      bulletId: nanoid(),
+    })),
+  );
 
   // Render CV
   await renderToFile(
     React.createElement(CvTemplate, {
-      ...personalInfo,
-      linkedinUrl: linkedinProfile,
-      bullets: enrichedBullets,
-      education,
-      skillCategories: [{ label: "Skills", items: ctx.skillItems }],
+      name: profile.name,
+      jobTitle: profile.role,
+      email: profile.email,
+      phone: profile.phone,
+      location: profile.location,
+      linkedinUrl: profile.linkedinUrl,
+      website: profile.website || undefined,
+      bullets: flatBullets,
+      education: ctx.education,
+      skillCategories: [{ label: "Skills", items: ctx.skills }],
     }) as React.ReactElement<DocumentProps>,
     cvPath,
   );
@@ -291,8 +181,11 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   // Render cover letter
   await renderToFile(
     React.createElement(CoverLetterTemplate, {
-      senderName: personalInfo.name,
-      senderEmail: personalInfo.email,
+      senderName: profile.name,
+      senderRole: profile.role,
+      senderEmail: profile.email,
+      senderPhone: profile.phone,
+      senderLinkedin: profile.linkedinUrl,
       companyName: job.company,
       jobTitle: job.title,
       paragraphs: ctx.coverParagraphs,
@@ -310,8 +203,8 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
     profile_hash: profileHash,
     cv_path: cvPath,
     cover_path: coverPath,
-    bullets_json: JSON.stringify(ctx.bullets),
-    skills_json: JSON.stringify(ctx.skillItems),
+    bullets_json: JSON.stringify(ctx.experience),
+    skills_json: JSON.stringify(ctx.skills),
     cover_paragraphs_json: JSON.stringify(ctx.coverParagraphs),
     rationale_json: ctx.rationale ? JSON.stringify(ctx.rationale) : null,
     parent_generation_id: parentGenerationId ?? null,
