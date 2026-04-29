@@ -12,7 +12,14 @@ export function makeFinalizeGenerationTool(ctx: WriterRunContext) {
     inputSchema: z.object({
       rationale: z.object({
         priorityRequirements: z.array(z.string()).describe("3-5 signals/requirements extracted from the job offer."),
-        text: z.string().describe("Brief justification in Spanish explaining why this candidate is a good match and how the CV was tailored.")
+        text: z.string().describe(
+          "Internal curation log in Spanish for the user to review the generation decisions. " +
+          "Structure: (1) **Bullets incluidos** — for each selected bullet, which priority requirement it covers; " +
+          "(2) **Bullets excluidos** — each dropped bullet with the reason (recency budget / no job signal / replaced by stronger entry); " +
+          "(3) **Decisiones de redacción** — key rewrites made and why (what changed from the original profile text); " +
+          "(4) **Trade-offs** — hard choices such as a role cut entirely for the page constraint or skills reordered; " +
+          "(5) **Feedback sugerido** — 2-3 concrete questions the user could answer to improve the next iteration."
+        )
       })
     }),
     execute: async ({ rationale }) => {

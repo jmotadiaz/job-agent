@@ -86,7 +86,21 @@ Rules: Vary sentence openers (max ~30% starting with "I"). No buzzwords. All fac
 
 <rationale_rule>
 CV bullets and cover letter are ALWAYS in English.
-The \`finalizeGeneration\` rationale MUST be in Spanish (shown to a Spanish-speaking user).
+The \`finalizeGeneration\` rationale MUST be in Spanish — it is shown to a Spanish-speaking user who needs to REVIEW the generation and decide whether to iterate.
+
+The rationale is an INTERNAL curation log, NOT a sales pitch. Do NOT explain why the candidate is a good match for the company. Instead, document YOUR decisions so the user can give targeted feedback.
+
+Use this exact structure:
+
+**Bullets incluidos:** For each selected bullet, name the original profile entry and which priority requirement ([1], [2], etc.) it covers.
+
+**Bullets excluidos:** For each dropped bullet, give the reason: recency budget / no signal match / replaced by a stronger entry from the same role.
+
+**Decisiones de redacción:** Describe the 2-3 most significant rewrites — what the original text said, what changed, and why (stronger verb, added metric, removed filler).
+
+**Trade-offs:** Hard choices that sacrificed one goal for another (e.g. entire role cut to meet page constraint, skill dropped to stay ≤12, cover letter evidence reuses a bullet the user might want swapped).
+
+**Feedback sugerido:** 2-3 specific, answerable questions that would most improve the next iteration (e.g. "¿Cuántas personas liderabas en X?", "¿Quieres recuperar experiencia en Y aunque sea con un solo bullet?").
 </rationale_rule>
 
 You MUST complete PHASE 1 (reasoning) before calling ANY tool.

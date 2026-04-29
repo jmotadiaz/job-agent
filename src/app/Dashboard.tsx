@@ -284,9 +284,7 @@ function FeedbackForm({
 
 interface Rationale {
   priorityRequirements: string[];
-  bulletsRationale: string;
-  skillsRationale: string;
-  coverLetterRationale: string;
+  text: string;
 }
 
 function parseRationale(json: string | null): Rationale | null {
@@ -295,9 +293,7 @@ function parseRationale(json: string | null): Rationale | null {
     const parsed = JSON.parse(json) as Partial<Rationale>;
     if (
       Array.isArray(parsed.priorityRequirements) &&
-      typeof parsed.bulletsRationale === "string" &&
-      typeof parsed.skillsRationale === "string" &&
-      typeof parsed.coverLetterRationale === "string"
+      typeof parsed.text === "string"
     ) {
       return parsed as Rationale;
     }
@@ -349,36 +345,8 @@ function RationalePanel({ rationale }: { rationale: Rationale }) {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="px-3.5 py-3 bg-(--bg-raised) rounded-sm border-l-2 border-l-(--text-muted) space-y-2">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-(--text-muted) mb-1">
-                <FileText size={12} />
-                CV Bullets
-              </div>
-              <p className="text-[11px] leading-relaxed text-(--text-secondary)">
-                {rationale.bulletsRationale}
-              </p>
-            </div>
-
-            <div className="px-3.5 py-3 bg-(--bg-raised) rounded-sm border-l-2 border-l-(--text-muted) space-y-2">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-(--text-muted) mb-1">
-                <WandSparkles size={12} />
-                Skills
-              </div>
-              <p className="text-[11px] leading-relaxed text-(--text-secondary)">
-                {rationale.skillsRationale}
-              </p>
-            </div>
-
-            <div className="px-3.5 py-3 bg-(--bg-raised) rounded-sm border-l-2 border-l-(--text-muted) space-y-2">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-(--text-muted) mb-1">
-                <Mail size={12} />
-                Cover Letter
-              </div>
-              <p className="text-[11px] leading-relaxed text-(--text-secondary)">
-                {rationale.coverLetterRationale}
-              </p>
-            </div>
+          <div className="px-3.5 py-3 bg-(--bg-raised) rounded-sm border-l-2 border-l-(--text-muted) text-[11px] text-(--text-secondary)">
+            <Streamdown mode="static">{rationale.text}</Streamdown>
           </div>
         </div>
       )}
