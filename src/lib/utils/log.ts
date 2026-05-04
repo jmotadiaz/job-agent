@@ -1,26 +1,41 @@
-type Level = 'info' | 'warn' | 'error';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { getCurrentRunContext } from "@/lib/runtime/run-context";
+
+type Level = "info" | "warn" | "error";
 
 function emit(level: Level, module: string, event: string, payload?: unknown): void {
   const ts = new Date().toISOString();
-  const payloadStr = payload !== undefined ? ' ' + JSON.stringify(payload) : '';
+  const payloadStr = payload !== undefined ? " " + JSON.stringify(payload) : "";
   const line = `[${ts}] [${module}] ${event}${payloadStr}`;
-  if (level === 'error') {
+  if (level === "error") {
     console.error(line);
-  } else if (level === 'warn') {
+  } else if (level === "warn") {
     console.warn(line);
   } else {
     console.log(line);
+  }
+
+  const ctx = getCurrentRunContext();
+  if (ctx) {
+    try {
+      const timelinePath = path.join(ctx.runDir, "timeline.jsonl");
+      const entry = JSON.stringify({ ts, level, module, event, payload });
+      fs.appendFileSync(timelinePath, entry + "\n");
+    } catch {
+      // Don't let filesystem errors break the application
+    }
   }
 }
 
 export const log = {
   info(module: string, event: string, payload?: unknown): void {
-    emit('info', module, event, payload);
+    emit("info", module, event, payload);
   },
   warn(module: string, event: string, payload?: unknown): void {
-    emit('warn', module, event, payload);
+    emit("warn", module, event, payload);
   },
   error(module: string, event: string, payload?: unknown): void {
-    emit('error', module, event, payload);
+    emit("error", module, event, payload);
   },
 };
