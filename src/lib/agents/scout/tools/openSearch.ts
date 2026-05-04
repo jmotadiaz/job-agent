@@ -86,6 +86,7 @@ export function makeOpenSearchTool(ctx: ScoutRunContext) {
 
           const dismissPatterns = [
             /- button "Dismiss" \[ref=([^\]]+)\]/,
+            /- button "Descartar" \[ref=([^\]]+)\]/,
             /- button "Cerrar" \[ref=([^\]]+)\]/,
             /- button "Close" \[ref=([^\]]+)\]/,
           ];

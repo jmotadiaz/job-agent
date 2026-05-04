@@ -37,6 +37,7 @@ export async function extractJobFromUrl(url: string): Promise<ExtractedJob> {
 
       const dismissPatterns = [
         /- button "Dismiss" \[ref=([^\]]+)\]/,
+        /- button "Descartar" \[ref=([^\]]+)\]/,
         /- button "Cerrar" \[ref=([^\]]+)\]/,
         /- button "Close" \[ref=([^\]]+)\]/,
       ];
