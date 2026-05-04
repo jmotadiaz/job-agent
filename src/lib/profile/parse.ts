@@ -2,7 +2,7 @@ import matter from "gray-matter";
 
 export interface SearchConfig {
   queries: string[];
-  location?: string;
+  locations: string[];
   remote?: boolean;
   experience_level?: string;
   job_type?: string;
@@ -64,10 +64,17 @@ export function parseProfile(content: string): ParsedProfile {
     }
   }
 
+  let locations: string[] = [];
+  if (Array.isArray(s.location)) {
+    locations = (s.location as unknown[]).filter((l): l is string => typeof l === "string" && l.trim() !== "");
+  } else if (typeof s.location === "string" && s.location.trim()) {
+    locations = [s.location];
+  }
+
   return {
     search: {
       queries,
-      location: s.location ?? undefined,
+      locations,
       remote: typeof s.remote === "boolean" ? s.remote : undefined,
       experience_level: s.experience_level ?? undefined,
       job_type: s.job_type ?? undefined,

@@ -27,9 +27,10 @@ const GEO_IDS: Record<string, string> = {
 
 function buildLinkedInUrl(query: string, search: SearchConfig): string {
   const params = new URLSearchParams({ keywords: query });
-  if (search.location) {
-    params.set("location", search.location);
-    const geoId = GEO_IDS[search.location.toLowerCase().trim()];
+  const loc = search.locations[0];
+  if (loc) {
+    params.set("location", loc);
+    const geoId = GEO_IDS[loc.toLowerCase().trim()];
     if (geoId) params.set("geoId", geoId);
   }
   if (search.remote) params.set("f_WT", "2");

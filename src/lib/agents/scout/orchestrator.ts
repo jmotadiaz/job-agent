@@ -10,13 +10,15 @@ import type { JobDetails, ScoutResult } from "./types";
 
 const MODULE = "scout/orchestrator";
 
-let lastUsedQuery: string | null = null;
+let lastUsedPairIndex = -1;
 
-function pickNextQuery(queries: string[]): string {
-  if (lastUsedQuery === null) return queries[0];
-  const idx = queries.indexOf(lastUsedQuery);
-  if (idx === -1 || idx === queries.length - 1) return queries[0];
-  return queries[idx + 1];
+function pickNextPair(queries: string[], locations: string[]): { query: string; location: string | undefined } {
+  const locCount = Math.max(locations.length, 1);
+  const total = queries.length * locCount;
+  lastUsedPairIndex = (lastUsedPairIndex + 1) % total;
+  const query = queries[Math.floor(lastUsedPairIndex / locCount)];
+  const location = locations.length > 0 ? locations[lastUsedPairIndex % locations.length] : undefined;
+  return { query, location };
 }
 
 function detailsToMd(d: JobDetails): string {
@@ -45,13 +47,14 @@ export async function runScout(): Promise<ScoutResult> {
   });
 
   const { search, rawContent } = parseProfile(profileContent);
-  const query = pickNextQuery(search.queries);
-  lastUsedQuery = query;
+  const { query, location } = pickNextPair(search.queries, search.locations);
 
-  const { agent, ctx } = createScoutAgent(search);
+  const searchForRun = { ...search, locations: location ? [location] : [] };
+  const { agent, ctx } = createScoutAgent(searchForRun);
   resetBrowserState();
 
-  const prompt = `Search for job offers using the query: "${query}". User profile:\n\n${rawContent}`;
+  const locationLabel = location ? ` in ${location}` : "";
+  const prompt = `Search for job offers using the query: "${query}"${locationLabel}. User profile:\n\n${rawContent}`;
 
   log.info(MODULE, "agent invoke begin", { query });
   const startMs = Date.now();
