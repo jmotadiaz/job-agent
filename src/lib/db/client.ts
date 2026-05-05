@@ -1,8 +1,7 @@
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
-
-const DB_PATH = path.join(process.cwd(), 'data', 'job-agent.sqlite');
+import { DB_PATH } from '@/lib/runtime/paths';
 
 function createClient(): Database.Database {
   const dir = path.dirname(DB_PATH);

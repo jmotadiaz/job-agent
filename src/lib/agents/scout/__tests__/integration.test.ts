@@ -1,4 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+vi.mock('server-only', () => ({}));
 
 // ──────────────────────────────────────────────────────────────
 // Mocks
@@ -11,9 +13,16 @@ vi.mock('@/lib/profile/load', () => ({
 
 vi.mock('@/lib/profile/parse', () => ({
   parseProfile: vi.fn(() => ({
-    search: { query: 'software engineer', location: 'Madrid', remote: true },
+    search: { queries: ['software engineer'], locations: ['Madrid'], remote: true },
     rawContent: '# Profile',
-    bulletCatalog: [{ bulletId: 'b0', text: 'Skill 1' }],
+    profile: {
+      name: 'Test User',
+      role: 'Developer',
+      email: 'test@example.com',
+      phone: '+123',
+      location: 'Madrid',
+      linkedinUrl: 'https://linkedin.com/in/test',
+    },
   })),
 }));
 
@@ -32,8 +41,11 @@ vi.mock('@/lib/agent-browser/exec', () => ({
   resetBrowserState: vi.fn(),
 }));
 
+vi.mock('nanoid', () => ({
+  nanoid: vi.fn(() => 'test-nanoid'),
+}));
+
 // MOCK THE AGENT FACTORY DIRECTLY
-// This is the most reliable way to test orchestrator logic in complex agent loops
 vi.mock('../agent', () => ({
   createScoutAgent: vi.fn(() => ({
     agent: {
@@ -52,15 +64,32 @@ vi.mock('../agent', () => ({
 // Import after mocks
 // ──────────────────────────────────────────────────────────────
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import { createScoutAgent } from '../agent';
 import { insertJob } from '@/lib/db/jobs';
 import { runScout } from '../orchestrator';
+import { log } from '@/lib/utils/log';
+import { dismissBlockingOverlays } from '@/lib/agent-browser/exec';
+
+let tmpDir: string;
+let originalLogDir: string;
+
+beforeEach(() => {
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scout-int-test-'));
+  // Override the LOG_DIR used by the orchestrator by mocking the module path
+  // The orchestrator uses process.cwd() + '/log', so we need to intercept it.
+  // We'll use a more direct approach: after the run, look for the run directory
+  // under the actual log/ path, but clean it up afterward.
+});
+
+afterEach(() => {
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  vi.clearAllMocks();
+});
 
 describe('Scout integration (Orchestrator Test)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('kind: match — orchestrator succeeds when agent sets saveMatchCalled', async () => {
     vi.mocked(createScoutAgent).mockReturnValue({
       agent: { generate: vi.fn().mockResolvedValue({}) } as any,
@@ -68,7 +97,14 @@ describe('Scout integration (Orchestrator Test)', () => {
         saveMatchCalled: true,
         noMatchCalled: false,
         candidateCount: 1,
-        lastSummary: { external_id: '123', url: '...', title: 'Dev', company: 'Tech', location: 'Remote', summary_md: '...' },
+        lastSummary: {
+          external_id: '123', url: '...', title: 'Dev', company: 'Tech', location: 'Remote', summary_md: '...',
+          details: {
+            role: 'Dev', company: 'Tech', location: 'Remote', remote: 'yes', contract: 'full-time',
+            experience_required: '3', role_type: 'backend', primary_tech: ['Go'], secondary_tech: [],
+            key_responsibilities: ['Build'], salary: '80k', hard_blockers: 'none',
+          },
+        },
         matchResult: { score: 0.9, reason: 'Good' },
       } as any,
     });
@@ -90,5 +126,173 @@ describe('Scout integration (Orchestrator Test)', () => {
 
     const result = await runScout();
     expect(result.kind).toBe('no_match');
+  });
+});
+
+describe('Scout run observability', () => {
+  let logDir: string;
+
+  beforeEach(async () => {
+    const { LOG_DIR } = await import('@/lib/runtime/paths');
+    logDir = LOG_DIR;
+  });
+
+  afterEach(() => {
+    // Clean up any run directories created during tests
+    if (fs.existsSync(logDir)) {
+      const entries = fs.readdirSync(logDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory() && entry.name.includes('test') || entry.name.match(/^\d{4}-\d{2}-\d{2}T/)) {
+          try {
+            fs.rmSync(path.join(logDir, entry.name), { recursive: true, force: true });
+          } catch {
+            // ignore cleanup errors
+          }
+        }
+      }
+    }
+  });
+
+  function createMockAgentWithTrace(toolCalls: boolean = true) {
+    return {
+      agent: {
+        generate: vi.fn().mockImplementation(async (opts: any) => {
+          // Simulate agent steps with onStepFinish callback
+          if (opts?.onStepFinish) {
+            opts.onStepFinish({
+              stepNumber: 0,
+              text: 'Thinking about search...',
+              toolCalls: toolCalls ? [
+                { toolName: 'openSearch', input: { query: 'software engineer' } },
+              ] : [],
+              toolResults: toolCalls ? [
+                { toolName: 'openSearch', output: { success: true } },
+              ] : [],
+              finishReason: toolCalls ? 'tool-calls' : 'stop',
+              usage: { promptTokens: 100, completionTokens: 50 },
+            });
+          }
+        }),
+      } as any,
+      ctx: {
+        saveMatchCalled: true,
+        noMatchCalled: false,
+        candidateCount: 1,
+        lastSummary: {
+          external_id: '456',
+          url: 'https://example.com/job',
+          title: 'Senior Dev',
+          company: 'TechCorp',
+          location: 'Remote',
+          summary_md: 'A great job',
+          details: {
+            role: 'Senior Dev',
+            company: 'TechCorp',
+            location: 'Remote',
+            remote: 'yes',
+            contract: 'full-time',
+            experience_required: '5',
+            role_type: 'backend',
+            primary_tech: ['Go'],
+            secondary_tech: ['K8s'],
+            key_responsibilities: ['Build APIs'],
+            salary: '100k',
+            hard_blockers: 'none',
+          },
+        },
+        matchResult: { score: 0.85, reason: 'Good match' },
+      } as any,
+    };
+  }
+
+  function findLatestRunDir(): string | null {
+    if (!fs.existsSync(logDir)) return null;
+    const dirs = fs.readdirSync(logDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && /^\d{4}-\d{2}-\d{2}T/.test(e.name))
+      .map((e) => e.name)
+      .sort()
+      .reverse();
+    return dirs.length > 0 ? path.join(logDir, dirs[0]) : null;
+  }
+
+  it('4.6 + 10.4 — produces agent-trace.jsonl with N≥1 lines and non-empty toolCalls', async () => {
+    vi.mocked(createScoutAgent).mockReturnValue(createMockAgentWithTrace(true));
+
+    await runScout();
+
+    const runDir = findLatestRunDir();
+    expect(runDir).toBeTruthy();
+
+    const tracePath = path.join(runDir!, 'agent-trace.jsonl');
+    expect(fs.existsSync(tracePath)).toBe(true);
+
+    const lines = fs.readFileSync(tracePath, 'utf8').trim().split('\n').filter(Boolean);
+    expect(lines.length).toBeGreaterThanOrEqual(1);
+
+    const record = JSON.parse(lines[0]);
+    expect(record).toHaveProperty('ts');
+    expect(record).toHaveProperty('step');
+    expect(record).toHaveProperty('messages');
+    expect(record).toHaveProperty('toolCalls');
+    expect(record).toHaveProperty('toolResults');
+    expect(record).toHaveProperty('finishReason');
+    expect(record.toolCalls.length).toBeGreaterThan(0);
+  });
+
+  it('10.1 — produces run directory with the 4 expected files/directories', async () => {
+    vi.mocked(createScoutAgent).mockReturnValue(createMockAgentWithTrace(true));
+
+    await runScout();
+
+    const runDir = findLatestRunDir();
+    expect(runDir).toBeTruthy();
+
+    expect(fs.existsSync(path.join(runDir!, 'meta.json'))).toBe(true);
+    expect(fs.existsSync(path.join(runDir!, 'timeline.jsonl'))).toBe(true);
+    expect(fs.existsSync(path.join(runDir!, 'agent-trace.jsonl'))).toBe(true);
+    expect(fs.existsSync(path.join(runDir!, 'artifacts'))).toBe(true);
+    expect(fs.statSync(path.join(runDir!, 'artifacts')).isDirectory()).toBe(true);
+  });
+
+  it('10.2 — meta.json captures kind, outcome, duration_ms and input fields', async () => {
+    vi.mocked(createScoutAgent).mockReturnValue(createMockAgentWithTrace(true));
+
+    await runScout();
+
+    const runDir = findLatestRunDir();
+    expect(runDir).toBeTruthy();
+
+    const meta = JSON.parse(fs.readFileSync(path.join(runDir!, 'meta.json'), 'utf8'));
+    expect(meta.kind).toBe('scout');
+    expect(meta.outcome).toBe('match');
+    expect(typeof meta.duration_ms).toBe('number');
+    expect(meta.duration_ms).toBeGreaterThanOrEqual(0);
+    expect(meta.input).toBeDefined();
+    expect(meta.startedAt).toBeDefined();
+    expect(meta.finishedAt).toBeDefined();
+  });
+
+  it('10.3 — timeline.jsonl contains agent invoke begin and agent result events', async () => {
+    vi.mocked(createScoutAgent).mockReturnValue(createMockAgentWithTrace(true));
+
+    await runScout();
+
+    const runDir = findLatestRunDir();
+    expect(runDir).toBeTruthy();
+
+    const timelinePath = path.join(runDir!, 'timeline.jsonl');
+    expect(fs.existsSync(timelinePath)).toBe(true);
+
+    const lines = fs.readFileSync(timelinePath, 'utf8').trim().split('\n').filter(Boolean);
+    expect(lines.length).toBeGreaterThanOrEqual(2);
+
+    const events = lines.map((l) => JSON.parse(l));
+    const invokeBegin = events.find((e: any) => e.event === 'agent invoke begin');
+    const agentResult = events.find((e: any) => e.event === 'agent result');
+
+    expect(invokeBegin).toBeDefined();
+    expect(invokeBegin.module).toBe('scout/orchestrator');
+    expect(agentResult).toBeDefined();
+    expect(agentResult.module).toBe('scout/orchestrator');
   });
 });

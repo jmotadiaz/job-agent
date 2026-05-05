@@ -11,6 +11,7 @@ export interface RunContext {
   runDir: string;
   kind: RunKind;
   sequenceCounter: { value: number };
+  outcome: { value: string; result?: unknown };
 }
 
 export interface RunInput {
@@ -42,8 +43,15 @@ export function getCurrentRunContext(): RunContext | undefined {
   return storage.getStore();
 }
 
+export function setRunOutcome(outcome: string, result?: unknown): void {
+  const ctx = storage.getStore();
+  if (ctx) {
+    ctx.outcome = { value: outcome, result };
+  }
+}
+
 export async function runWithContext<T>(
-  opts: Omit<RunContext, "sequenceCounter"> & { input: Record<string, unknown> },
+  opts: Omit<RunContext, "sequenceCounter" | "outcome"> & { input: Record<string, unknown> },
   fn: () => Promise<T>,
 ): Promise<T> {
   const { input, ...ctxBase } = opts;
@@ -62,7 +70,11 @@ export async function runWithContext<T>(
   };
   fs.writeFileSync(metaPath, JSON.stringify(initialMeta, null, 2), "utf8");
 
-  const ctx: RunContext = { ...ctxBase, sequenceCounter: { value: 1 } };
+  const ctx: RunContext = {
+    ...ctxBase,
+    sequenceCounter: { value: 1 },
+    outcome: { value: "ok" },
+  };
   const t0 = Date.now();
 
   try {
@@ -72,8 +84,8 @@ export async function runWithContext<T>(
       ...initialMeta,
       finishedAt,
       duration_ms: Date.now() - t0,
-      outcome: "ok",
-      result: null as unknown,
+      outcome: ctx.outcome.value,
+      result: ctx.outcome.result ?? null,
     };
     fs.writeFileSync(metaPath, JSON.stringify(finalMeta, null, 2), "utf8");
     return result;

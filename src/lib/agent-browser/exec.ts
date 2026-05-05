@@ -1,9 +1,23 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { log } from "@/lib/utils/log";
+import { dump } from "@/lib/utils/dump";
 
 const execFileAsync = promisify(execFile);
 const MODULE = "agent-browser/exec";
+
+const DISMISS_PATTERNS = [
+  /- button "Dismiss" \[ref=([^\]]+)\]/,
+  /- button "Descartar" \[ref=([^\]]+)\]/,
+  /- button "Cerrar" \[ref=([^\]]+)\]/,
+  /- button "Close" \[ref=([^\]]+)\]/,
+];
+
+const COOKIE_PATTERNS = [
+  /- button "Accept" \[ref=([^\]]+)\]/,
+  /- button "Aceptar" \[ref=([^\]]+)\]/,
+  /- button "Accept all" \[ref=([^\]]+)\]/i,
+];
 
 export interface AgentBrowserResult {
   success: boolean;
@@ -165,4 +179,81 @@ export async function closeBrowser(): Promise<void> {
 
 export function resetBrowserState(): void {
   _browserClosed = false;
+}
+
+interface SnapshotData {
+  snapshot?: string;
+  refs?: Record<string, { role: string; name?: string; url?: string }>;
+}
+
+export async function dismissBlockingOverlays(
+  session?: string,
+): Promise<void> {
+  log.info(MODULE, "dismiss-attempt", { session });
+
+  let snapData: SnapshotData | undefined;
+  try {
+    const snap = await snapshot({ interactive: true }, session);
+    snapData = snap.data as SnapshotData | undefined;
+  } catch {
+    return;
+  }
+
+  const snapText = snapData?.snapshot ?? "";
+  const snapRefs = snapData?.refs ?? {};
+
+  // Try login wall dismiss patterns
+  for (const pattern of DISMISS_PATTERNS) {
+    const m = snapText.match(pattern);
+    if (m) {
+      log.info(MODULE, "dismiss-hit", {
+        kind: "login-wall",
+        pattern: pattern.source,
+        ref: m[1],
+      });
+      await runAgentBrowser(["click", `@${m[1]}`], session);
+      await runAgentBrowser(["wait", "1500"], session);
+      break;
+    }
+  }
+
+  // Take a fresh snapshot for cookie banners
+  try {
+    const snap2 = await snapshot({ interactive: true }, session);
+    const snap2Text = (snap2.data as SnapshotData | undefined)?.snapshot ?? "";
+
+    for (const pattern of COOKIE_PATTERNS) {
+      const m = snap2Text.match(pattern);
+      if (m) {
+        log.info(MODULE, "dismiss-hit", {
+          kind: "cookie-banner",
+          pattern: pattern.source,
+          ref: m[1],
+        });
+        await runAgentBrowser(["click", `@${m[1]}`], session);
+        await runAgentBrowser(["wait", "1500"], session);
+        break;
+      }
+    }
+  } catch {
+    // ignore snapshot failure for cookie check
+  }
+
+  // Heuristic: check if there are unknown buttons in the first 30 lines
+  const lines = snapText.split("\n").slice(0, 30);
+  const allPatterns = [...DISMISS_PATTERNS, ...COOKIE_PATTERNS];
+  for (const line of lines) {
+    const btnMatch = line.match(/- button "([^"]+)" \[ref=([^\]]+)\]/);
+    if (btnMatch) {
+      const isKnown = allPatterns.some((p) => p.test(line));
+      if (!isKnown) {
+        const artifactName = dump("dismiss_miss", {
+          snapshot: snapText,
+          refs: snapRefs,
+        });
+        log.warn(MODULE, "dismiss-miss", { snapshotArtifact: artifactName });
+        break;
+      }
+    }
+  }
 }

@@ -5,21 +5,15 @@ import { generateObject } from "ai";
 import {
   openUrl,
   waitLoad,
-  snapshot,
   getText,
-  runAgentBrowser,
   closeSession,
+  dismissBlockingOverlays,
 } from "@/lib/agent-browser/exec";
 import { log } from "@/lib/utils/log";
 import { dump } from "@/lib/utils/dump";
 import { fillPrompt } from "@/lib/utils/prompt";
 import { JobDetailsSchema } from "../types";
 import type { JobSummary, ScoutRunContext } from "../types";
-
-interface SnapshotData {
-  snapshot?: string;
-  refs?: Record<string, { role: string; name?: string; url?: string }>;
-}
 
 const SYSTEM_PROMPT = `You are a job description parser. Extract structured data from job postings and return it as a JSON object.
 
@@ -73,44 +67,7 @@ export function makeFetchJobDetailTool(ctx: ScoutRunContext) {
         await waitLoad(session);
 
         try {
-          const snap = await snapshot({ interactive: true }, session);
-          const snapData = snap.data as SnapshotData | undefined;
-          const snapText = snapData?.snapshot ?? "";
-
-          const dismissPatterns = [
-            /- button "Dismiss" \[ref=([^\]]+)\]/,
-            /- button "Descartar" \[ref=([^\]]+)\]/,
-            /- button "Cerrar" \[ref=([^\]]+)\]/,
-            /- button "Close" \[ref=([^\]]+)\]/,
-          ];
-          for (const pattern of dismissPatterns) {
-            const m = snapText.match(pattern);
-            if (m) {
-              log.info(MODULE, "fetchJobDetail: dismissing login wall", {
-                ref: m[1],
-              });
-              await runAgentBrowser(["click", `@${m[1]}`], session);
-              await runAgentBrowser(["wait", "1500"], session);
-              break;
-            }
-          }
-
-          const cookiePatterns = [
-            /- button "Accept" \[ref=([^\]]+)\]/,
-            /- button "Aceptar" \[ref=([^\]]+)\]/,
-            /- button "Accept all" \[ref=([^\]]+)\]/i,
-          ];
-          for (const pattern of cookiePatterns) {
-            const m = snapText.match(pattern);
-            if (m) {
-              log.info(MODULE, "fetchJobDetail: accepting cookie banner", {
-                ref: m[1],
-              });
-              await runAgentBrowser(["click", `@${m[1]}`], session);
-              await runAgentBrowser(["wait", "1500"], session);
-              break;
-            }
-          }
+          await dismissBlockingOverlays(session);
         } catch (e) {
           log.warn(MODULE, "fetchJobDetail: dismiss overlay failed", {
             message: e instanceof Error ? e.message : String(e),
@@ -121,34 +78,6 @@ export function makeFetchJobDetailTool(ctx: ScoutRunContext) {
           (await getText(".description__text", session)) ||
           (await getText('[class*="description"]', session)) ||
           (await getText("main", session));
-
-        // if (/show more"?\s*$/i.test(rawText.trimEnd())) {
-        //   try {
-        //     for (const label of ["Show more", "Ver más"]) {
-        //       try {
-        //         await runAgentBrowser(
-        //           ["find", "text", label, "click"],
-        //           session,
-        //         );
-        //         log.info(MODULE, "fetchJobDetail: clicked Show more", {
-        //           label,
-        //         });
-        //         await runAgentBrowser(["wait", "1000"], session);
-        //         rawText =
-        //           (await getText(".description__text", session)) ||
-        //           (await getText('[class*="description"]', session)) ||
-        //           (await getText("main", session));
-        //         break;
-        //       } catch {
-        //         // label not found, try next
-        //       }
-        //     }
-        //   } catch (e) {
-        //     log.warn(MODULE, "fetchJobDetail: show more click failed", {
-        //       message: e instanceof Error ? e.message : String(e),
-        //     });
-        //   }
-        // }
 
         const raw_len = rawText.length;
 

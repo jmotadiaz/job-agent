@@ -10,11 +10,17 @@ import { getJobById } from "@/lib/db/jobs";
 import { insertGeneration, getGenerationById } from "@/lib/db/generations";
 import { CvTemplate } from "@/lib/writer/templates/cv";
 import { CoverLetterTemplate } from "@/lib/writer/templates/cover-letter";
+import { appendAgentStep } from "@/lib/runtime/agent-trace";
+import {
+  runWithContext,
+  makeRunId,
+  setRunOutcome,
+} from "@/lib/runtime/run-context";
+import { LOG_DIR, GENERATED_PDFS_DIR } from "@/lib/runtime/paths";
 import { createWriterAgent } from "./agent";
 import { log } from "@/lib/utils/log";
 import type { WriterRunContext } from "./tools";
 
-const OUTPUT_BASE = path.join(process.cwd(), "generated-pdfs");
 const MODULE = "writer/orchestrator";
 
 export interface WriterInput {
@@ -30,198 +36,221 @@ export type WriterOutput =
 
 export async function runWriter(input: WriterInput): Promise<WriterOutput> {
   const { jobId, parentGenerationId, feedbackRating, feedbackComment } = input;
+  const runId = makeRunId();
+  const runDir = path.join(LOG_DIR, runId);
 
-  const job = getJobById(jobId);
-  if (!job)
-    throw Object.assign(new Error(`Job ${jobId} not found`), { status: 404 });
+  return runWithContext(
+    { runId, runDir, kind: "writer", input: { jobId, generationId: parentGenerationId } },
+    async () => {
+      const job = getJobById(jobId);
+      if (!job)
+        throw Object.assign(new Error(`Job ${jobId} not found`), { status: 404 });
 
-  const profileContent = loadProfile();
-  const profileHash = hashProfile(profileContent);
-  log.info(MODULE, "profile loaded", {
-    hash: profileHash,
-    length: profileContent.length,
-  });
+      const profileContent = loadProfile();
+      const profileHash = hashProfile(profileContent);
+      log.info(MODULE, "profile loaded", {
+        hash: profileHash,
+        length: profileContent.length,
+      });
 
-  const { profile } = parseProfile(profileContent);
+      const { profile } = parseProfile(profileContent);
 
-  // Build prompt
-  const jobDescription = job.raw_snapshot || job.description_md;
-  let prompt = `Adapt the CV and cover letter for the offer below. Read the offer first, extract its 3-5 priority requirements, then compose the experience, skills, and education accordingly. Apply the resume_language_principles, recency budget, and cover_letter structure from your system instructions.\n\n`;
-  prompt += `<job_offer>\n${jobDescription}\n</job_offer>\n\n`;
-  prompt += `<candidate_profile>\n${profileContent}\n</candidate_profile>\n`;
+      // Build prompt
+      const jobDescription = job.raw_snapshot || job.description_md;
+      let prompt = `Adapt the CV and cover letter for the offer below. Read the offer first, extract its 3-5 priority requirements, then compose the experience, skills, and education accordingly. Apply the resume_language_principles, recency budget, and cover_letter structure from your system instructions.\n\n`;
+      prompt += `<job_offer>\n${jobDescription}\n</job_offer>\n\n`;
+      prompt += `<candidate_profile>\n${profileContent}\n</candidate_profile>\n`;
 
-  const isIteration = !!parentGenerationId;
+      const isIteration = !!parentGenerationId;
 
-  if (parentGenerationId) {
-    const parent = getGenerationById(parentGenerationId);
-    if (parent) {
-      const hasFeedback = parent.feedback_rating != null;
-      log.info(MODULE, "parent loaded", { parentGenerationId, hasFeedback });
-      prompt += `\n<previous_generation note="Reference for this iteration. Keep what was working; revise what feedback flags.">\n`;
-      prompt += `Selected bullets: ${parent.bullets_json}\n`;
-      prompt += `Selected skills: ${parent.skills_json ?? "none"}\n`;
-      prompt += `Cover letter body: ${parent.cover_paragraphs_json}\n`;
-      prompt += `</previous_generation>\n`;
-      if (feedbackRating) {
-        prompt += `\n<user_feedback>\nRating: ${feedbackRating}/5\n`;
-        if (feedbackComment) prompt += `Comment: ${feedbackComment}\n`;
-        prompt += `</user_feedback>\n`;
+      if (parentGenerationId) {
+        const parent = getGenerationById(parentGenerationId);
+        if (parent) {
+          const hasFeedback = parent.feedback_rating != null;
+          log.info(MODULE, "parent loaded", { parentGenerationId, hasFeedback });
+          prompt += `\n<previous_generation note="Reference for this iteration. Keep what was working; revise what feedback flags.">\n`;
+          prompt += `Selected bullets: ${parent.bullets_json}\n`;
+          prompt += `Selected skills: ${parent.skills_json ?? "none"}\n`;
+          prompt += `Cover letter body: ${parent.cover_paragraphs_json}\n`;
+          prompt += `</previous_generation>\n`;
+          if (feedbackRating) {
+            prompt += `\n<user_feedback>\nRating: ${feedbackRating}/5\n`;
+            if (feedbackComment) prompt += `Comment: ${feedbackComment}\n`;
+            prompt += `</user_feedback>\n`;
+          }
+        }
       }
-    }
-  }
 
-  const mode = isIteration ? "iteration" : "initial";
+      const mode = isIteration ? "iteration" : "initial";
 
-  log.info(MODULE, "agent invoke begin", {
-    mode,
-    jobId,
-    promptLen: prompt.length,
-  });
+      log.info(MODULE, "agent invoke begin", {
+        mode,
+        jobId,
+        promptLen: prompt.length,
+      });
 
-  const ctx: WriterRunContext = {
-    experience: null,
-    skills: null,
-    education: null,
-    coverParagraphs: null,
-    rationale: null,
-    finalized: false,
-  };
+      const ctx: WriterRunContext = {
+        experience: null,
+        skills: null,
+        education: null,
+        coverParagraphs: null,
+        rationale: null,
+        finalized: false,
+      };
 
-  try {
-    const agent = createWriterAgent(ctx, isIteration);
-    log.info(MODULE, "agent created", { mode });
-    const agentT0 = Date.now();
+      try {
+        const agent = createWriterAgent(ctx, isIteration);
+        log.info(MODULE, "agent created", { mode });
+        const agentT0 = Date.now();
 
-    await agent.generate({
-      prompt,
-      onStepFinish: (step) => {
-        log.info(MODULE, `agent step ${step.stepNumber} finish`, {
-          finishReason: step.finishReason,
-          usage: step.usage,
-          text:
-            step.text?.slice(0, 100) + (step.text?.length > 100 ? "..." : ""),
-          reasoning: (step as any).reasoningText?.slice(0, 100), // Catch reasoning if present
-          toolCalls: step.toolCalls?.map((tc) => ({
-            tool: tc.toolName,
-            args: tc.input,
-          })),
+        await agent.generate({
+          prompt,
+          onStepFinish: (step) => {
+            log.info(MODULE, `agent step ${step.stepNumber} finish`, {
+              finishReason: step.finishReason,
+              usage: step.usage,
+              text:
+                step.text?.slice(0, 100) + (step.text?.length > 100 ? "..." : ""),
+              reasoning: (step as any).reasoningText?.slice(0, 100),
+              toolCalls: step.toolCalls?.map((tc) => ({
+                tool: tc.toolName,
+                args: tc.input,
+              })),
+            });
+
+            if (step.toolResults && step.toolResults.length > 0) {
+              step.toolResults.forEach((tr) => {
+                log.info(MODULE, `tool result: ${tr.toolName}`, {
+                  args: tr.input,
+                  result: tr.output,
+                });
+              });
+            }
+
+            appendAgentStep(step.stepNumber, {
+              text: step.text,
+              toolCalls: step.toolCalls?.map((tc) => ({
+                toolName: tc.toolName,
+                input: tc.input,
+              })),
+              toolResults: step.toolResults?.map((tr) => ({
+                toolName: tr.toolName,
+                output: tr.output,
+              })),
+              finishReason: step.finishReason,
+              usage: step.usage,
+            });
+          },
         });
 
-        if (step.toolResults && step.toolResults.length > 0) {
-          step.toolResults.forEach((tr) => {
-            log.info(MODULE, `tool result: ${tr.toolName}`, {
-              args: tr.input,
-              result: tr.output,
-            });
-          });
+        const agentDuration = Date.now() - agentT0;
+
+        if (
+          !ctx.experience ||
+          !ctx.skills ||
+          !ctx.education ||
+          !ctx.coverParagraphs
+        ) {
+          throw new Error(
+            "Writer agent did not produce experience, skills, education, and cover letter",
+          );
         }
-      },
-    });
 
-    const agentDuration = Date.now() - agentT0;
+        const coverLen = ctx.coverParagraphs.join("\n").length;
+        log.info(MODULE, "agent result", {
+          mode,
+          experienceCount: ctx.experience.length,
+          coverLen,
+          duration: agentDuration,
+        });
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        log.error(MODULE, "agent failure", { error: error.message });
+        setRunOutcome("error", { message: error.message });
+        return { kind: "error", message: error.message };
+      }
 
-    if (
-      !ctx.experience ||
-      !ctx.skills ||
-      !ctx.education ||
-      !ctx.coverParagraphs
-    ) {
-      throw new Error(
-        "Writer agent did not produce experience, skills, education, and cover letter",
+      const generationId = nanoid();
+      const outDir = path.join(GENERATED_PDFS_DIR, jobId, generationId);
+      fs.mkdirSync(outDir, { recursive: true });
+
+      const cvPath = path.join(outDir, "cv.pdf");
+      const coverPath = path.join(outDir, "cover.pdf");
+
+      const flatBullets = ctx.experience.flatMap((e) =>
+        e.bullets.map((text) => ({
+          company: e.company,
+          jobTitle: e.role,
+          period: e.period,
+          renderedText: text,
+          bulletId: nanoid(),
+        })),
       );
-    }
 
-    const coverLen = ctx.coverParagraphs.join("\n").length;
-    log.info(MODULE, "agent result", {
-      mode,
-      experienceCount: ctx.experience.length,
-      coverLen,
-      duration: agentDuration,
-    });
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    log.error(MODULE, "agent failure", { error: error.message });
-    return { kind: "error", message: error.message };
-  }
+      // Render CV
+      await renderToFile(
+        React.createElement(CvTemplate, {
+          name: profile.name,
+          jobTitle: profile.role,
+          email: profile.email,
+          phone: profile.phone,
+          location: profile.location,
+          linkedinUrl: profile.linkedinUrl,
+          website: profile.website || undefined,
+          bullets: flatBullets,
+          education: ctx.education,
+          skillCategories: [{ label: "Skills", items: ctx.skills }],
+        }) as React.ReactElement<DocumentProps>,
+        cvPath,
+      );
 
-  const generationId = nanoid();
-  const outDir = path.join(OUTPUT_BASE, jobId, generationId);
-  fs.mkdirSync(outDir, { recursive: true });
+      // Render cover letter
+      await renderToFile(
+        React.createElement(CoverLetterTemplate, {
+          senderName: profile.name,
+          senderRole: profile.role,
+          senderEmail: profile.email,
+          senderPhone: profile.phone,
+          senderLinkedin: profile.linkedinUrl,
+          companyName: job.company,
+          jobTitle: job.title,
+          paragraphs: ctx.coverParagraphs,
+        }) as React.ReactElement<DocumentProps>,
+        coverPath,
+      );
 
-  const cvPath = path.join(outDir, "cv.pdf");
-  const coverPath = path.join(outDir, "cover.pdf");
+      const cvSize = fs.statSync(cvPath).size;
+      const coverSize = fs.statSync(coverPath).size;
+      log.info(MODULE, "pdf rendered", { cvPath, coverPath, cvSize, coverSize });
 
-  const flatBullets = ctx.experience.flatMap((e) =>
-    e.bullets.map((text) => ({
-      company: e.company,
-      jobTitle: e.role,
-      period: e.period,
-      renderedText: text,
-      bulletId: nanoid(),
-    })),
+      insertGeneration({
+        id: generationId,
+        job_id: jobId,
+        profile_hash: profileHash,
+        cv_path: cvPath,
+        cover_path: coverPath,
+        bullets_json: JSON.stringify(ctx.experience),
+        skills_json: JSON.stringify(ctx.skills),
+        cover_paragraphs_json: JSON.stringify(ctx.coverParagraphs),
+        rationale_json: ctx.rationale ? JSON.stringify(ctx.rationale) : null,
+        parent_generation_id: parentGenerationId ?? null,
+        feedback_rating: feedbackRating ?? null,
+        feedback_comment: feedbackComment ?? null,
+      });
+
+      log.info(MODULE, "persist", {
+        generationId,
+        jobId,
+        parent: parentGenerationId ?? null,
+      });
+
+      setRunOutcome("ok", { generationId });
+      return {
+        kind: "success",
+        generationId,
+        cvUrl: `/api/generations/${generationId}/cv`,
+        coverUrl: `/api/generations/${generationId}/cover`,
+      };
+    },
   );
-
-  // Render CV
-  await renderToFile(
-    React.createElement(CvTemplate, {
-      name: profile.name,
-      jobTitle: profile.role,
-      email: profile.email,
-      phone: profile.phone,
-      location: profile.location,
-      linkedinUrl: profile.linkedinUrl,
-      website: profile.website || undefined,
-      bullets: flatBullets,
-      education: ctx.education,
-      skillCategories: [{ label: "Skills", items: ctx.skills }],
-    }) as React.ReactElement<DocumentProps>,
-    cvPath,
-  );
-
-  // Render cover letter
-  await renderToFile(
-    React.createElement(CoverLetterTemplate, {
-      senderName: profile.name,
-      senderRole: profile.role,
-      senderEmail: profile.email,
-      senderPhone: profile.phone,
-      senderLinkedin: profile.linkedinUrl,
-      companyName: job.company,
-      jobTitle: job.title,
-      paragraphs: ctx.coverParagraphs,
-    }) as React.ReactElement<DocumentProps>,
-    coverPath,
-  );
-
-  const cvSize = fs.statSync(cvPath).size;
-  const coverSize = fs.statSync(coverPath).size;
-  log.info(MODULE, "pdf rendered", { cvPath, coverPath, cvSize, coverSize });
-
-  insertGeneration({
-    id: generationId,
-    job_id: jobId,
-    profile_hash: profileHash,
-    cv_path: cvPath,
-    cover_path: coverPath,
-    bullets_json: JSON.stringify(ctx.experience),
-    skills_json: JSON.stringify(ctx.skills),
-    cover_paragraphs_json: JSON.stringify(ctx.coverParagraphs),
-    rationale_json: ctx.rationale ? JSON.stringify(ctx.rationale) : null,
-    parent_generation_id: parentGenerationId ?? null,
-    feedback_rating: feedbackRating ?? null,
-    feedback_comment: feedbackComment ?? null,
-  });
-
-  log.info(MODULE, "persist", {
-    generationId,
-    jobId,
-    parent: parentGenerationId ?? null,
-  });
-
-  return {
-    kind: "success",
-    generationId,
-    cvUrl: `/api/generations/${generationId}/cv`,
-    coverUrl: `/api/generations/${generationId}/cover`,
-  };
 }

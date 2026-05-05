@@ -77,3 +77,4 @@ email | phone | location | LinkedIn | website
 ```
 
 The frontmatter `search.queries` list drives round-robin query rotation in the Scout orchestrator.
+    

@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-
-const PROFILE_PATH = path.join(process.cwd(), 'profile.md');
+import { PROFILE_PATH } from '@/lib/runtime/paths';
 
 export function loadProfile(): string {
   if (!fs.existsSync(PROFILE_PATH)) {

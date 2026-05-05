@@ -220,10 +220,10 @@ describe("Writer feedback & iteration integration", () => {
     expect(row.feedback_rating).toBeNull();
     expect(row.feedback_comment).toBeNull();
 
+    const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
     fs.rmSync(
       path.join(
-        process.cwd(),
-        "generated-pdfs",
+        GENERATED_PDFS_DIR,
         "job-feedback-1",
         result.generationId,
       ),
@@ -232,6 +232,8 @@ describe("Writer feedback & iteration integration", () => {
   });
 
   it("(b) feedback + iteration produces child row with correct metadata", async () => {
+    const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
+
     // Generate parent
     setFakeRun(
       makeAgentRun([
@@ -265,16 +267,18 @@ describe("Writer feedback & iteration integration", () => {
 
     // Cleanup
     fs.rmSync(
-      path.join(process.cwd(), "generated-pdfs", "job-feedback-1", parentId),
+      path.join(GENERATED_PDFS_DIR, "job-feedback-1", parentId),
       { recursive: true, force: true },
     );
     fs.rmSync(
-      path.join(process.cwd(), "generated-pdfs", "job-feedback-1", childId),
+      path.join(GENERATED_PDFS_DIR, "job-feedback-1", childId),
       { recursive: true, force: true },
     );
   });
 
   it("(c) two iterations from same parent are siblings", async () => {
+    const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
+
     // Generate parent
     setFakeRun(
       makeAgentRun([
@@ -335,13 +339,15 @@ describe("Writer feedback & iteration integration", () => {
       (child2 as any).generationId,
     ]) {
       fs.rmSync(
-        path.join(process.cwd(), "generated-pdfs", "job-feedback-1", id),
+        path.join(GENERATED_PDFS_DIR, "job-feedback-1", id),
         { recursive: true, force: true },
       );
     }
   });
 
   it("(d) no endpoint allows editing feedback of an existing generation", async () => {
+    const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
+
     // The design guarantees this: insertGeneration is INSERT (no UPDATE),
     // and there is no PATCH /api/generations/[id] route that accepts feedback fields.
     // Here we verify at the DB layer: calling insertGeneration twice with the same id throws.
@@ -365,8 +371,7 @@ describe("Writer feedback & iteration integration", () => {
 
     fs.rmSync(
       path.join(
-        process.cwd(),
-        "generated-pdfs",
+        GENERATED_PDFS_DIR,
         "job-feedback-1",
         generationId,
       ),

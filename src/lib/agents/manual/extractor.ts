@@ -1,15 +1,20 @@
 import { createDeepInfra } from "@ai-sdk/deepinfra";
 import { generateText } from "ai";
+import * as path from "node:path";
 import {
   openUrl,
   waitLoad,
-  snapshot,
   getText,
-  runAgentBrowser,
   closeSession,
+  dismissBlockingOverlays,
 } from "@/lib/agent-browser/exec";
 import { log } from "@/lib/utils/log";
 import { dump } from "@/lib/utils/dump";
+import {
+  runWithContext,
+  makeRunId,
+} from "@/lib/runtime/run-context";
+import { LOG_DIR } from "@/lib/runtime/paths";
 
 const MODULE = "manual/extractor";
 const LLM_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
@@ -23,74 +28,49 @@ export interface ExtractedJob {
 }
 
 export async function extractJobFromUrl(url: string): Promise<ExtractedJob> {
-  const session = `manual-${Date.now()}`;
-  log.info(MODULE, "begin", { url, session });
+  const runId = makeRunId();
+  const runDir = path.join(LOG_DIR, runId);
 
-  try {
-    await openUrl(url, session);
-    await waitLoad(session);
+  return runWithContext(
+    { runId, runDir, kind: "manual", input: { url } },
+    async () => {
+      const session = `manual-${Date.now()}`;
+      log.info(MODULE, "begin", { url, session });
 
-    // Dismiss login walls and cookie banners
-    try {
-      const snap = await snapshot({ interactive: true }, session);
-      const snapText = (snap.data as { snapshot?: string })?.snapshot ?? "";
+      try {
+        await openUrl(url, session);
+        await waitLoad(session);
 
-      const dismissPatterns = [
-        /- button "Dismiss" \[ref=([^\]]+)\]/,
-        /- button "Descartar" \[ref=([^\]]+)\]/,
-        /- button "Cerrar" \[ref=([^\]]+)\]/,
-        /- button "Close" \[ref=([^\]]+)\]/,
-      ];
-      for (const pattern of dismissPatterns) {
-        const m = snapText.match(pattern);
-        if (m) {
-          await runAgentBrowser(["click", `@${m[1]}`], session);
-          await runAgentBrowser(["wait", "1500"], session);
-          break;
+        try {
+          await dismissBlockingOverlays(session);
+        } catch (e) {
+          log.warn(MODULE, "dismiss overlay failed", {
+            message: e instanceof Error ? e.message : String(e),
+          });
         }
-      }
 
-      const cookiePatterns = [
-        /- button "Accept" \[ref=([^\]]+)\]/,
-        /- button "Aceptar" \[ref=([^\]]+)\]/,
-        /- button "Accept all" \[ref=([^\]]+)\]/i,
-      ];
-      for (const pattern of cookiePatterns) {
-        const m = snapText.match(pattern);
-        if (m) {
-          await runAgentBrowser(["click", `@${m[1]}`], session);
-          await runAgentBrowser(["wait", "1500"], session);
-          break;
+        const rawText =
+          (await getText(".description__text", session)) ||
+          (await getText('[class*="description"]', session)) ||
+          (await getText("main", session));
+
+        if (rawText.length < 50) {
+          throw new Error(
+            "Could not extract job description — page may require login or is unsupported",
+          );
         }
-      }
-    } catch (e) {
-      log.warn(MODULE, "dismiss overlay failed", {
-        message: e instanceof Error ? e.message : String(e),
-      });
-    }
 
-    const rawText =
-      (await getText(".description__text", session)) ||
-      (await getText('[class*="description"]', session)) ||
-      (await getText("main", session));
+        log.info(MODULE, "raw text extracted", { length: rawText.length });
 
-    if (rawText.length < 50) {
-      throw new Error(
-        "Could not extract job description — page may require login or is unsupported",
-      );
-    }
-
-    log.info(MODULE, "raw text extracted", { length: rawText.length });
-
-    const deepinfra = createDeepInfra({
-      apiKey: process.env.DEEPINFRA_API_KEY!,
-    });
-    const { text: description_md } = await generateText({
-      model: deepinfra(LLM_MODEL),
-      messages: [
-        {
-          role: "user",
-          content: `Extract the following fields from this job description. Be concise and literal — do not infer or invent. If a field is not mentioned, write "Not specified". Return each field as a markdown list item exactly as shown below.
+        const deepinfra = createDeepInfra({
+          apiKey: process.env.DEEPINFRA_API_KEY!,
+        });
+        const { text: description_md } = await generateText({
+          model: deepinfra(LLM_MODEL),
+          messages: [
+            {
+              role: "user",
+              content: `Extract the following fields from this job description. Be concise and literal — do not infer or invent. If a field is not mentioned, write "Not specified". Return each field as a markdown list item exactly as shown below.
 
 - Role: [job title]
 - Company: [company name]
@@ -107,28 +87,30 @@ export async function extractJobFromUrl(url: string): Promise<ExtractedJob> {
 
 Job description:
 ${rawText.slice(0, 8000)}`,
-        },
-      ],
-      maxOutputTokens: 512,
-    });
+            },
+          ],
+          maxOutputTokens: 512,
+        });
 
-    // Parse title/company/location from the LLM output
-    const parse = (field: string) => {
-      const m = description_md.match(
-        new RegExp(`^- ${field}:\\s*([^\\n]+)`, "m"),
-      );
-      const v = m?.[1]?.trim() ?? "";
-      return v === "Not specified" || v === "" ? "" : v;
-    };
+        // Parse title/company/location from the LLM output
+        const parse = (field: string) => {
+          const m = description_md.match(
+            new RegExp(`^- ${field}:\\s*([^\\n]+)`, "m"),
+          );
+          const v = m?.[1]?.trim() ?? "";
+          return v === "Not specified" || v === "" ? "" : v;
+        };
 
-    const title = parse("Role");
-    const company = parse("Company");
-    const location = parse("Location");
+        const title = parse("Role");
+        const company = parse("Company");
+        const location = parse("Location");
 
-    log.info(MODULE, "end", { title, company, location });
-    dump("extracted", { rawText });
-    return { title, company, location, description_md, raw_text: rawText };
-  } finally {
-    await closeSession(session);
-  }
+        log.info(MODULE, "end", { title, company, location });
+        dump("extracted", { rawText });
+        return { title, company, location, description_md, raw_text: rawText };
+      } finally {
+        await closeSession(session);
+      }
+    },
+  );
 }

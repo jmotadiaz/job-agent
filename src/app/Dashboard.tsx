@@ -950,6 +950,12 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
             </p>
           </div>
           <div className="ml-auto flex items-start gap-3 flex-wrap">
+            <a
+              href="/log"
+              className="btn btn-ghost text-xs uppercase tracking-wider"
+            >
+              Logs
+            </a>
             <AddJobButton onNewJob={handleNewJob} />
             <ScoutButton onNewJob={handleNewJob} />
           </div>
