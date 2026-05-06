@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Download,
   FileJson,
+  Copy,
+  Check,
 } from "lucide-react";
 import { JsonBlock } from "./JsonBlock";
 
@@ -71,6 +73,25 @@ export default function LogDetailPage({
   const [expandedArtifacts, setExpandedArtifacts] = useState<Set<string>>(new Set());
   const [artifactContents, setArtifactContents] = useState<Map<string, ArtifactContent>>(new Map());
   const [reviewing, setReviewing] = useState(false);
+  const [reviewCopied, setReviewCopied] = useState(false);
+
+  const handleCopyReview = async () => {
+    if (!detail?.review) return;
+    try {
+      await navigator.clipboard.writeText(detail.review);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = detail.review;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    setReviewCopied(true);
+    setTimeout(() => setReviewCopied(false), 2000);
+  };
 
   const fetchDetail = useCallback(async () => {
     setLoading(true);
@@ -316,10 +337,19 @@ export default function LogDetailPage({
         {/* Review */}
         {detail.review && (
           <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border)] p-4 mb-6">
-            <h2 className="text-sm font-semibold text-[var(--text-secondary)] mb-3 flex items-center gap-2">
-              <Sparkles size={16} className="text-[#d8b4fe]" />
-              Review
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-[var(--text-secondary)] flex items-center gap-2">
+                <Sparkles size={16} className="text-[#d8b4fe]" />
+                Review
+              </h2>
+              <button
+                onClick={handleCopyReview}
+                className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                title="Copy review"
+              >
+                {reviewCopied ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+            </div>
             <div className="prose prose-sm max-w-none text-[var(--text-secondary)]">
               <Streamdown mode="static">{detail.review}</Streamdown>
             </div>

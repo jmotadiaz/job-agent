@@ -1,146 +1,119 @@
 ## ADDED Requirements
 
-### Requirement: Listado de ofertas con filtros por estado
+### Requirement: Sección `/log` en el dashboard
 
-El dashboard SHALL renderizar una lista de todas las ofertas presentes en la tabla `jobs` con filtros por `status` (`new`, `shortlisted`, `applied`, `discarded`) y ordenación por `fetched_at` descendente por defecto.
+El dashboard SHALL exponer una sección dedicada bajo la ruta `/log` con un índice de todos los runs persistidos en `log/` y un detalle por `runId`, accesible desde la navegación principal del dashboard.
 
-#### Scenario: Filtrado por estado
+#### Scenario: Index de runs
 
-- **WHEN** el usuario selecciona el filtro `shortlisted`
-- **THEN** la lista SHALL mostrar únicamente ofertas cuyo `status` es exactamente `shortlisted`
-- **AND** SHALL reflejar los cambios de estado inmediatamente al aplicar acciones CRUD sin requerir recarga completa de página
+- **WHEN** el usuario navega a `/log`
+- **THEN** la página SHALL listar todos los runs presentes en `log/` ordenados por `startedAt` descendente
+- **AND** cada entrada SHALL mostrar al menos `runId`, `kind`, `startedAt`, `outcome` (si está disponible) y un indicador de si ya tiene `review.md`
+- **AND** cada entrada SHALL ser un enlace a `/log/<runId>`
 
-#### Scenario: Visualización por oferta
+#### Scenario: Detalle de run
 
-- **WHEN** la lista se renderiza
-- **THEN** cada oferta SHALL mostrar al menos `title`, `company`, `location`, `match_score`, un extracto de `match_reason`, y el estado actual
-- **AND** SHALL proporcionar un enlace a la URL original de la oferta
+- **WHEN** el usuario navega a `/log/<runId>`
+- **THEN** la página SHALL renderizar tres bloques: (1) la información de `meta.json`, (2) el `timeline.jsonl` como tabla con columnas `ts`, `level`, `module`, `event`, `payload`, (3) el `agent-trace.jsonl` como lista expandible de steps, y (4) el listado de archivos en `artifacts/` con enlaces de descarga
+- **AND** la tabla del timeline SHALL ofrecer al menos un filtro por `level` y otro por `module`
 
-### Requirement: Botón global "buscar nueva oferta"
+#### Scenario: Run inexistente
 
-El dashboard SHALL exponer un botón "buscar nueva oferta" que invoque `POST /api/scout/run` de forma síncrona, muestre un indicador de progreso mientras la ejecución está en curso, y muestre al usuario el resultado de forma explícita.
+- **WHEN** el usuario navega a `/log/<runId>` con un `runId` que no corresponde a ninguna carpeta
+- **THEN** la página SHALL mostrar un mensaje de "run no encontrado" y un enlace de vuelta a `/log`
 
-#### Scenario: Match persistido
+### Requirement: Control de limpieza global y por run
 
-- **WHEN** la invocación devuelve `{ kind: "match", job }`
-- **THEN** el dashboard SHALL refrescar la lista para incluir la nueva oferta en la parte superior
-- **AND** SHALL mostrar una notificación breve indicando que se ha encontrado un match
+El dashboard SHALL exponer dos controles para eliminar runs persistidos: uno global en la página index `/log` y uno por run en la página de detalle `/log/<runId>`.
 
-#### Scenario: Sin match
+#### Scenario: Botón "Limpiar todos los logs" en la index
 
-- **WHEN** la invocación devuelve `{ kind: "no_match", reason }`
-- **THEN** el dashboard SHALL mostrar una notificación con la razón devuelta
-- **AND** la lista SHALL permanecer sin cambios
+- **WHEN** el usuario hace clic en "Limpiar todos los logs" en `/log` y confirma la acción en el diálogo de confirmación
+- **THEN** el dashboard SHALL invocar `DELETE /api/log` y eliminar todas las carpetas de runs
+- **AND** la lista SHALL refrescarse y quedar vacía
 
-#### Scenario: Error de navegación
+#### Scenario: Botón "Eliminar este log" en el detalle
 
-- **WHEN** la invocación devuelve un error (HTTP 502)
-- **THEN** el dashboard SHALL mostrar el mensaje de error de forma legible
-- **AND** SHALL permitir al usuario reintentar sin recargar la página
+- **WHEN** el usuario hace clic en "Eliminar este log" en `/log/<runId>` y confirma
+- **THEN** el dashboard SHALL invocar `DELETE /api/log/<runId>`
+- **AND** SHALL redirigir al usuario a `/log`
+- **AND** la lista en `/log` SHALL ya no contener ese `runId`
 
-### Requirement: Acción "generar" por oferta
+#### Scenario: Confirmación obligatoria
 
-Cada oferta listada SHALL ofrecer una acción "generar" que invoque `POST /api/writer/generate` con el `jobId` correspondiente y muestre al usuario el resultado cuando termine.
+- **WHEN** el usuario activa cualquiera de los dos controles de limpieza
+- **THEN** la acción SHALL requerir una confirmación explícita antes de invocar la API
+- **AND** SHALL ser cancelable sin efecto
 
-#### Scenario: Generación exitosa
+### Requirement: Control "Pedir revisión" y visualización del informe
 
-- **WHEN** la generación termina con éxito
-- **THEN** la fila de la oferta SHALL exponer dos enlaces de descarga: uno para el CV y otro para la carta
-- **AND** los enlaces SHALL seguir disponibles en visitas posteriores al dashboard mientras los ficheros existan en disco
+El dashboard SHALL exponer en la página de detalle de un run un control para invocar al agente revisor sobre ese run, y SHALL renderizar el informe markdown resultante de forma legible.
 
-### Requirement: Descarga de PDFs generados
+#### Scenario: Run sin revisión previa
 
-El dashboard SHALL permitir al usuario descargar los ficheros PDF producidos por el Writer a través de URLs servidas por el propio servidor Next.js local.
+- **WHEN** el usuario navega a `/log/<runId>` y el run no tiene aún un `review.md`
+- **THEN** la página SHALL mostrar un botón "Pedir revisión"
+- **AND** al hacer clic, SHALL invocar `POST /api/log/<runId>/review`, mostrar un indicador de progreso, y al recibir respuesta SHALL renderizar el markdown del informe en un bloque dedicado
 
-#### Scenario: Descarga de CV
+#### Scenario: Run ya revisado
 
-- **WHEN** el usuario pulsa el enlace de descarga del CV para una generación existente
-- **THEN** el navegador SHALL recibir el fichero PDF correspondiente como attachment o inline según la configuración del servidor
+- **WHEN** el usuario navega a `/log/<runId>` y el run tiene `review.md`
+- **THEN** la página SHALL renderizar el informe directamente al cargar
+- **AND** SHALL ofrecer un botón "Re-revisar" que repite la operación y sobrescribe el informe
 
-#### Scenario: Fichero ausente
+#### Scenario: Renderizado markdown
 
-- **WHEN** el fichero referenciado por `cv_path` o `cover_path` ya no existe en disco
-- **THEN** el endpoint de descarga SHALL responder con HTTP 404
-- **AND** el dashboard SHALL ofrecer la opción de regenerar
+- **WHEN** se renderiza el contenido de `review.md`
+- **THEN** SHALL parsearse como markdown y mostrarse con tipografía y espaciado consistentes con el resto del dashboard
+- **AND** los enlaces y bloques de código SHALL formatearse correctamente
 
-### Requirement: CRUD mínimo de estado — aplicado y descartado
+### Requirement: Tema visual consistente con el dashboard principal
 
-El dashboard SHALL permitir al usuario cambiar el estado de una oferta entre `shortlisted`, `applied` y `discarded` mediante acciones explícitas.
+Las páginas `/log` y `/log/<runId>` SHALL usar el mismo tema oscuro que la página principal del dashboard (`src/app/Dashboard.tsx`), incluyendo las variables CSS `--bg`, `--surface`, `--border`, `--text-primary`, `--text-secondary`, `--text-muted`, y los estilos de `backdrop-blur`, bordes y fondos translúcidos.
 
-#### Scenario: Marcar como aplicado
+#### Scenario: Fondo y superficies oscuras
 
-- **WHEN** el usuario pulsa "marcar como aplicado" en una oferta con status `shortlisted`
-- **THEN** el sistema SHALL actualizar la fila correspondiente a `status = 'applied'`
-- **AND** la lista SHALL reflejar el cambio inmediatamente
+- **WHEN** el usuario navega a `/log` o `/log/<runId>` en cualquier viewport
+- **THEN** el fondo de la página SHALL usar `var(--bg)` (o equivalente oscuro)
+- **AND** las tarjetas, tablas y paneles SHALL usar `var(--surface)` con bordes `var(--border)`
+- **AND** los botones, badges y texto SHALL seguir la paleta del dashboard principal
 
-#### Scenario: Marcar como descartado
+#### Scenario: Cabecera consistente
 
-- **WHEN** el usuario pulsa "descartar" en una oferta con status `shortlisted` o `new`
-- **THEN** el sistema SHALL actualizar la fila correspondiente a `status = 'discarded'`
-- **AND** la oferta SHALL dejar de aparecer por defecto en la vista principal salvo que el filtro `discarded` esté seleccionado
+- **WHEN** la página se renderiza
+- **THEN** la cabecera SHALL usar el mismo estilo `sticky top-0` con `backdrop-blur-[12px]` y fondo translúcido que el dashboard principal
+- **AND** el enlace de vuelta y los controles SHALL usar los mismos estilos de botón (`btn`, `btn-ghost`)
 
-#### Scenario: Las transiciones no borran datos
+### Requirement: Diseño responsive con scroll horizontal en tablas
 
-- **WHEN** una oferta cambia de estado por cualquier acción CRUD
-- **THEN** el sistema SHALL conservar todos los demás campos (`title`, `company`, `match_score`, `match_reason`, etc.) sin modificación
+Las tablas de timeline y agent-trace SHALL ser legibles y navegables en viewports pequeños (móvil y tablet) sin que el contenido quede oculto o cortado.
 
-### Requirement: Bifurcación vía feedback humano sobre una generación
+#### Scenario: Tabla de timeline con scroll horizontal
 
-El dashboard SHALL ofrecer, sobre cualquier generación existente, una UI que permita al usuario emitir un `rating` en la escala `1..5` y un `comment` libre opcional. La confirmación de ese feedback SHALL disparar inmediatamente `POST /api/writer/generate` con el payload `{ jobId, parentGenerationId, feedbackRating, feedbackComment? }`, creando una nueva rama hija en el árbol de generaciones de la oferta. Emitir feedback y crear la nueva rama SHALL ser un único acto desde el punto de vista del usuario — no existe un paso intermedio "persistir feedback sin iterar", ni una operación de edición de feedback previamente emitido.
+- **WHEN** la tabla del timeline se renderiza en un viewport menor a 768px de ancho
+- **THEN** la tabla SHALL envolverse en un contenedor con `overflow-x: auto` que permita scroll horizontal
+- **AND** las columnas SHALL tener un ancho mínimo que garantice legibilidad (no colapsar a 0px)
+- **AND** la columna `payload` SHALL truncarse con ellipsis en lugar de forzar el ancho completo del contenido JSON
 
-#### Scenario: Emisión de feedback e iteración exitosa
+#### Scenario: Detalle de agente expandible sin desbordamiento
 
-- **WHEN** el usuario emite un `rating` entre 1 y 5 (con o sin `comment`) sobre una generación existente y confirma
-- **THEN** el dashboard SHALL mostrar un indicador de progreso mientras el Writer se ejecuta
-- **AND** al terminar, SHALL renderizar la nueva generación como hija de la elegida y exponer sus enlaces de descarga de CV y carta
+- **WHEN** los steps del agent-trace se expanden en un viewport móvil
+- **THEN** el contenido expandido SHALL respetar los límites del contenedor padre
+- **AND** los bloques de código y argumentos de tools SHALL usar `overflow-x: auto` o `word-break: break-word` para evitar desbordamiento horizontal
 
-#### Scenario: Rating inválido
+#### Scenario: Cabecera de tabla fija en scroll
 
-- **WHEN** el usuario intenta confirmar con un `rating` fuera del rango `1..5` o un valor no entero
-- **THEN** la UI SHALL rechazar la confirmación antes de llamar al endpoint y mostrar un mensaje claro
-- **AND** el sistema SHALL NO disparar al Writer
+- **WHEN** el usuario hace scroll vertical en la tabla del timeline
+- **THEN** la cabecera de la tabla SHALL permanecer visible (`position: sticky; top: 0`) para mantener el contexto de las columnas
 
-#### Scenario: Feedback inmutable
+#### Scenario: Controles de filtro accesibles en móvil
 
-- **WHEN** se inspecciona una generación hija ya creada
-- **THEN** su `feedback_rating` y `feedback_comment` SHALL aparecer como información de solo lectura
-- **AND** el dashboard SHALL NO ofrecer ninguna acción para editarlos
+- **WHEN** los filtros de `level` y `module` se renderizan en un viewport menor a 640px
+- **THEN** los selects SHALL ocupar el ancho disponible y apilarse verticalmente si es necesario
+- **AND** SHALL ser fácilmente tocables con un tamaño mínimo de 44×44px (recomendación WCAG)
 
-### Requirement: Visualización del árbol de iteraciones por oferta
+#### Scenario: Grid de meta-adaptable
 
-El dashboard SHALL mostrar, para cada oferta con generaciones asociadas, el conjunto completo de generaciones organizadas según su relación `parent_generation_id`, de forma que sea posible identificar visualmente cadenas e hijos hermanos (bifurcaciones). El usuario SHALL poder emitir feedback (y así crear una nueva rama) desde **cualquier** nodo del árbol, no exclusivamente desde el más reciente.
-
-#### Scenario: Cadena lineal
-
-- **WHEN** una oferta tiene tres generaciones `A → B → C` donde cada una es hija de la anterior
-- **THEN** el dashboard SHALL renderizarlas como una cadena lineal en orden cronológico respecto a `created_at`
-- **AND** cada nodo hijo (no la raíz) SHALL mostrar su `feedback_rating` y un indicador de si tiene `feedback_comment`
-
-#### Scenario: Bifurcación
-
-- **WHEN** una oferta tiene generaciones `A`, `B` (hija de `A`), y `B'` (también hija de `A`, creada después de `B`)
-- **THEN** el dashboard SHALL renderizar el árbol mostrando `B` y `B'` como hijos hermanos de `A`
-- **AND** cada una SHALL mostrar su propio feedback
-- **AND** SHALL quedar claro visualmente que ambas parten del mismo padre
-
-#### Scenario: Bifurcación desde un nodo intermedio
-
-- **WHEN** el usuario selecciona un nodo intermedio `B` de una cadena `A → B → C`, emite feedback sobre `B` y confirma
-- **THEN** el sistema SHALL crear una nueva generación `B'` con `parent_generation_id = B.id`
-- **AND** el árbol renderizado SHALL reflejar que `B'` coexiste con `C` como hijos hermanos de `B`
-- **AND** la rama `A → B → C` SHALL permanecer intacta y visible
-
-### Requirement: Indicador de obsolescencia por `profile_hash`
-
-Para cada oferta con una o más generaciones asociadas, el dashboard SHALL comparar el `profile_hash` más reciente de esas generaciones contra el hash actual del `profile.md` y mostrar un indicador visual cuando difieran.
-
-#### Scenario: Perfil sin cambios
-
-- **WHEN** el `profile_hash` de la última generación coincide con el SHA-1 actual de `profile.md`
-- **THEN** el dashboard SHALL NO mostrar ningún indicador de obsolescencia
-
-#### Scenario: Perfil modificado tras generación
-
-- **WHEN** el `profile_hash` de la última generación NO coincide con el SHA-1 actual de `profile.md`
-- **THEN** el dashboard SHALL mostrar un indicador visual (badge) junto a la oferta con texto equivalente a "perfil cambió — regenerar"
-- **AND** SHALL permitir al usuario disparar una nueva generación para actualizar los PDFs
+- **WHEN** la tarjeta de `meta.json` se renderiza en un viewport móvil
+- **THEN** el grid de 4 columnas SHALL colapsar a 2 columnas en tablets y 1 columna en móviles
+- **AND** los valores largos (como `runId`) SHALL truncarse con ellipsis para evitar desbordamiento

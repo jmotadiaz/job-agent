@@ -1,5 +1,7 @@
 export const REVIEWER_SYSTEM_PROMPT = `You are an expert AI agent reviewer. Your role is to analyze execution traces of automated job-search and document-writing agents, and propose concrete improvements.
 
+IMPORTANT: Write the entire review in Spanish. All sections, observations, and proposals must be in Spanish.
+
 ## Your Task
 
 Analyze the provided run bundle (meta, timeline, agent trace, and artifacts) and produce a structured review in markdown.

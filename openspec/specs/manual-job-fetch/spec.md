@@ -1,23 +1,23 @@
-# manual-job-fetch Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change manual-job-entry. Update Purpose after archive.
-## Requirements
-### Requirement: Handle Manual Fetch Request
-The system SHALL provide an API to fetch and structure job details from a given URL.
+### Requirement: Cierre de overlays en la entrada manual de oferta
 
-#### Scenario: Successful job extraction
-- **WHEN** user submits a valid job URL
-- **THEN** the system resolves the URL using the browser agent, extracts the main text, creates a structured job row, and persists it to the database with a high "match_score".
+El extractor manual (`src/lib/agents/manual/extractor.ts`) SHALL delegar el cierre de login walls y banners de cookies de LinkedIn al helper compartido `dismissBlockingOverlays(session)` ubicado en la capa `agent-browser`, y SHALL NO contener listas inline de patrones de botón.
 
-#### Scenario: Handle inaccessible URLs
-- **WHEN** user submits an invalid or unreachable URL
-- **THEN** the system returns a 400 or 500 error clearly indicating the page could not be read.
+#### Scenario: Lógica delegada al helper
 
-### Requirement: Dashboard Submission Input
-The system SHALL allow users to paste a URL directly from the Dashboard to trigger manual entry.
+- **WHEN** `extractJobFromUrl(url)` se invoca y la página objetivo carga con un overlay bloqueante
+- **THEN** la función SHALL invocar `dismissBlockingOverlays(session)` después de `openUrl` y `waitLoad`
+- **AND** la lógica de detección y clic SHALL ejecutarse íntegramente dentro del helper
 
-#### Scenario: Complete manual ingestion flow
-- **WHEN** the user pastes a URL and clicks the import button
-- **THEN** the UI shows a loading state until the backend creates the new job, inserts the new row in the Dashboard, and enables the Generate CV flow.
+#### Scenario: Sin listas de patrones inline
 
+- **WHEN** se inspecciona el código fuente de `extractor.ts`
+- **THEN** SHALL NO contener listas de regex de patrones de botón ("Dismiss", "Descartar", "Accept", etc.)
+- **AND** SHALL importar y usar `dismissBlockingOverlays` desde `@/lib/agent-browser/exec`
+
+#### Scenario: Comportamiento observable preservado
+
+- **WHEN** se compara el comportamiento de extracción antes y después del refactor para la misma URL
+- **THEN** los campos extraídos (`title`, `company`, `location`, `description_md`, `raw_text`) SHALL ser equivalentes
+- **AND** los casos donde la extracción fallaba antes (overlay no reconocido) SHALL ahora producir un evento `dismiss-miss` y un artefacto de evidencia, en vez de un fallo silencioso del regex
