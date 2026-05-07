@@ -9,7 +9,29 @@ import type { JobCard } from "../types";
 
 const MODULE = "scout/tool";
 
-export function makeListVisibleJobsTool(_ctx: ScoutRunContext) {
+// Extracts the numeric job ID from a LinkedIn jobs/view URL (slug or direct form).
+function extractJobId(url: string): string | undefined {
+  return (
+    url.match(/\/jobs\/view\/[^?]*-(\d{7,})(?:[/?]|$)/)?.[1] ??
+    url.match(/\/jobs\/view\/(\d{7,})(?:[/?]|$)/)?.[1]
+  );
+}
+
+// Derives a best-effort company name from a LinkedIn job URL slug.
+// Slug format: {title-words}-at-{company-words}-{jobId}
+// Returns "" when the pattern isn't found.
+function companyFromSlug(slug: string): string {
+  const withoutId = slug.replace(/-\d{7,}[/?]?.*$/, "");
+  const atIdx = withoutId.lastIndexOf("-at-");
+  if (atIdx === -1) return "";
+  return withoutId
+    .slice(atIdx + 4)
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+export function makeListVisibleJobsTool(ctx: ScoutRunContext) {
   return tool({
     description:
       "Return the offers visible on the results page, excluding those already seen. Each entry has external_id, url, title, company, location, snippet.",
@@ -18,7 +40,10 @@ export function makeListVisibleJobsTool(_ctx: ScoutRunContext) {
       const t0 = Date.now();
       log.info(MODULE, "listVisibleJobs begin");
       try {
-        const snap = await snapshot({ interactive: true, urls: true });
+        const snap = await snapshot(
+          { interactive: true, urls: true },
+          ctx.browserSession ?? undefined,
+        );
         const data = snap.data as
           | {
               snapshot?: string;
@@ -35,69 +60,44 @@ export function makeListVisibleJobsTool(_ctx: ScoutRunContext) {
 
         dump("listVisibleJobs", { snapshotText, refs });
 
-        const allRefUrls = Object.entries(refs).map(([ref, info]) => ({
-          ref,
-          url: info.url,
-          role: info.role,
-          name: info.name,
-        }));
-        const uniqueUrlPatterns = [
-          ...new Set(
-            allRefUrls
-              .filter((r) => r.url)
-              .map((r) => {
-                try {
-                  return new URL(r.url!).pathname
-                    .split("/")
-                    .slice(0, 4)
-                    .join("/");
-                } catch {
-                  return r.url!.slice(0, 60);
-                }
-              }),
-          ),
-        ].slice(0, 30);
-
-        log.info(MODULE, "listVisibleJobs snapshot summary", {
-          snapshot_length: snapshotText.length,
-          total_refs: allRefUrls.length,
-          unique_url_path_patterns: uniqueUrlPatterns,
-          snapshot_first_1000: snapshotText.slice(0, 1000),
-        });
-
         const seenIds = new Set<string>();
 
-        // https://{country}.linkedin.com/jobs/view/{slug}-{JOB_ID}?position=N&...
-        const JOB_ID_FROM_URL = /\/jobs\/view\/[^?]*-(\d{7,})(?:[/?]|$)/;
-        const JOB_ID_DIRECT = /\/jobs\/view\/(\d{7,})(?:[/?]|$)/;
+        // PRIMARY: parse markdown-formatted snapshotText for job links.
+        // LinkedIn public pages embed job URLs in the snapshot text but not in
+        // structured refs, so this is the main extraction path.
+        // Matches lines like:
+        //   - link "Senior Frontend Developer" [ref=e38, url=https://es.linkedin.com/jobs/view/senior-...-4407187997?...]
+        const SNAPSHOT_LINK =
+          /- link "([^"]+)" \[ref=\w+, url=(https?:\/\/[^\s]*?linkedin\.com\/jobs\/view\/[^\]?]+?)(?:\?[^\]]*)?]/g;
 
-        const allUrlsInText =
-          snapshotText.match(/https?:\/\/[^\s"'\]]+/g) || [];
-
-        const potentialJobRefs = Object.entries(refs).filter(([, r]) =>
-          r.url?.includes("/jobs/view/"),
-        );
-
-        log.info(MODULE, "listVisibleJobs: analysis", {
-          snapshot_length: snapshotText.length,
-          total_refs: Object.keys(refs).length,
-          total_urls_text: allUrlsInText.length,
-          job_view_refs_found: potentialJobRefs.length,
-          sample_job_urls: potentialJobRefs.slice(0, 3).map(([, r]) => r.url),
-        });
-
-        // PRIMARY: extract from refs (they carry full URLs with job IDs)
-        for (const [ref, info] of Object.entries(refs)) {
-          if (!info.url || !info.url.includes("/jobs/view/")) continue;
-
-          const slugMatch = info.url.match(JOB_ID_FROM_URL);
-          const directMatch = info.url.match(JOB_ID_DIRECT);
-          const external_id = (slugMatch ?? directMatch)?.[1];
-
+        for (const m of snapshotText.matchAll(SNAPSHOT_LINK)) {
+          const [, title, url] = m;
+          const external_id = extractJobId(url);
           if (!external_id || seenIds.has(external_id)) continue;
           seenIds.add(external_id);
 
-          const cleanUrl = info.url.split("?")[0];
+          const slug = url.split("/jobs/view/")[1] ?? "";
+          cards.push({
+            external_id,
+            url: `https://www.linkedin.com/jobs/view/${external_id}/`,
+            title,
+            company: companyFromSlug(slug),
+            location: "",
+            snippet: "",
+          });
+          log.info(MODULE, "listVisibleJobs: extracted from snapshot text", {
+            external_id,
+            title,
+            company: companyFromSlug(slug),
+          });
+        }
+
+        // SECONDARY: structured refs (edge cases where LinkedIn does include job URLs)
+        for (const [ref, info] of Object.entries(refs)) {
+          if (!info.url?.includes("/jobs/view/")) continue;
+          const external_id = extractJobId(info.url);
+          if (!external_id || seenIds.has(external_id)) continue;
+          seenIds.add(external_id);
           cards.push({
             external_id,
             url: `https://www.linkedin.com/jobs/view/${external_id}/`,
@@ -110,15 +110,13 @@ export function makeListVisibleJobsTool(_ctx: ScoutRunContext) {
             ref,
             external_id,
             title: info.name,
-            cleanUrl,
           });
         }
 
-        // FALLBACK: scan snapshotText for any job IDs we may have missed
+        // FALLBACK: bare-ID scan for any remaining IDs not caught above
         let m: RegExpExecArray | null;
-        const fallbackPattern =
-          /\/jobs\/view\/[^?\s"']*-(\d{7,})(?:[/?\s"']|$)/g;
-        while ((m = fallbackPattern.exec(snapshotText)) !== null) {
+        const bareIdPattern = /\/jobs\/view\/[^?\s"']*-(\d{7,})(?:[/?\s"']|$)/g;
+        while ((m = bareIdPattern.exec(snapshotText)) !== null) {
           const external_id = m[1];
           if (!seenIds.has(external_id)) {
             seenIds.add(external_id);
@@ -130,18 +128,19 @@ export function makeListVisibleJobsTool(_ctx: ScoutRunContext) {
               location: "",
               snippet: "",
             });
-            log.info(MODULE, "listVisibleJobs: extracted from text fallback", {
+            log.info(MODULE, "listVisibleJobs: extracted from bare-id fallback", {
               external_id,
             });
           }
         }
 
-        // Deduplicate by title (LinkedIn sometimes lists the same job under multiple IDs)
-        const seenTitles = new Set<string>();
+        // Deduplicate: same job sometimes appears under multiple IDs (title+company key)
+        const seenTitleCompany = new Set<string>();
         const dedupedCards = cards.filter((c) => {
           if (!c.title) return true;
-          if (seenTitles.has(c.title)) return false;
-          seenTitles.add(c.title);
+          const key = `${c.title}|${c.company}`;
+          if (seenTitleCompany.has(key)) return false;
+          seenTitleCompany.add(key);
           return true;
         });
 

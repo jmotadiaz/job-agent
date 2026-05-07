@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Trash2, RefreshCw, FileText, Clock, AlertCircle } from "lucide-react";
+import { ArrowLeft, Trash2, RefreshCw, FileText, Clock, AlertCircle } from "lucide-react";
 
 interface RunSummary {
   runId: string;
@@ -84,6 +84,13 @@ export default function LogIndexPage() {
         <div className="sticky top-0 z-50 -mx-6 px-6 py-4 mb-6 backdrop-blur-[12px] bg-[rgba(10,10,11,0.8)] border-b border-[var(--border)]">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-1"
+              >
+                <ArrowLeft size={14} />
+                Home
+              </Link>
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">
                 Run Logs
               </h1>

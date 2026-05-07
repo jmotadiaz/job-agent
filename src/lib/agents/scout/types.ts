@@ -75,4 +75,8 @@ export interface ScoutRunContext {
   noMatchCalled: boolean;
   saveMatchCalled: boolean;
   matchResult: { score: number; reason: string } | null;
+  /** Map of every job fetched in this run, keyed by external_id */
+  reviewedJobs: Map<string, JobSummary>;
+  /** Shared browser session name for the whole scout run */
+  browserSession: string | null;
 }

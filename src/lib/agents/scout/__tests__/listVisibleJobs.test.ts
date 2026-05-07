@@ -41,6 +41,8 @@ function makeCtx(): ScoutRunContext {
     noMatchCalled: false,
     saveMatchCalled: false,
     matchResult: null,
+    reviewedJobs: new Map(),
+    browserSession: null,
   };
 }
 

@@ -53,12 +53,16 @@ export function makeOpenSearchTool(ctx: ScoutRunContext) {
       const url = buildLinkedInUrl(query, ctx.search);
       const t0 = Date.now();
       log.info(MODULE, "openSearch begin", { query, url });
+
+      const session = ctx.browserSession ?? `scout-${Date.now()}`;
+      ctx.browserSession = session;
+
       try {
-        await openUrl(url);
-        await waitLoad();
+        await openUrl(url, session);
+        await waitLoad(session);
 
         try {
-          await dismissBlockingOverlays();
+          await dismissBlockingOverlays(session);
         } catch (e) {
           const m = e instanceof Error ? e.message : String(e);
           log.warn(MODULE, "openSearch dismiss overlay failed", { message: m });

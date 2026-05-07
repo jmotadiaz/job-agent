@@ -200,60 +200,72 @@ export async function dismissBlockingOverlays(
   }
 
   const snapText = snapData?.snapshot ?? "";
-  const snapRefs = snapData?.refs ?? {};
+
+  const clicks: { kind: string; ref: string; pattern: string }[] = [];
 
   // Try login wall dismiss patterns
   for (const pattern of DISMISS_PATTERNS) {
     const m = snapText.match(pattern);
     if (m) {
-      log.info(MODULE, "dismiss-hit", {
-        kind: "login-wall",
-        pattern: pattern.source,
-        ref: m[1],
-      });
-      await runAgentBrowser(["click", `@${m[1]}`], session);
-      await runAgentBrowser(["wait", "1500"], session);
+      clicks.push({ kind: "login-wall", ref: m[1], pattern: pattern.source });
       break;
     }
   }
 
-  // Take a fresh snapshot for cookie banners
-  try {
-    const snap2 = await snapshot({ interactive: true }, session);
-    const snap2Text = (snap2.data as SnapshotData | undefined)?.snapshot ?? "";
-
-    for (const pattern of COOKIE_PATTERNS) {
-      const m = snap2Text.match(pattern);
-      if (m) {
-        log.info(MODULE, "dismiss-hit", {
-          kind: "cookie-banner",
-          pattern: pattern.source,
-          ref: m[1],
-        });
-        await runAgentBrowser(["click", `@${m[1]}`], session);
-        await runAgentBrowser(["wait", "1500"], session);
-        break;
-      }
+  // Try cookie banner patterns on the same snapshot
+  for (const pattern of COOKIE_PATTERNS) {
+    const m = snapText.match(pattern);
+    if (m) {
+      clicks.push({
+        kind: "cookie-banner",
+        ref: m[1],
+        pattern: pattern.source,
+      });
+      break;
     }
-  } catch {
-    // ignore snapshot failure for cookie check
   }
 
-  // Heuristic: check if there are unknown buttons in the first 30 lines
-  const lines = snapText.split("\n").slice(0, 30);
-  const allPatterns = [...DISMISS_PATTERNS, ...COOKIE_PATTERNS];
-  for (const line of lines) {
-    const btnMatch = line.match(/- button "([^"]+)" \[ref=([^\]]+)\]/);
-    if (btnMatch) {
-      const isKnown = allPatterns.some((p) => p.test(line));
-      if (!isKnown) {
+  // Execute all clicks, then wait for the overlay to animate away
+  for (const click of clicks) {
+    log.info(MODULE, "dismiss-hit", {
+      kind: click.kind,
+      pattern: click.pattern,
+      ref: click.ref,
+    });
+    await runAgentBrowser(["click", `@${click.ref}`], session);
+  }
+
+  if (clicks.length > 0) {
+    await runAgentBrowser(["wait", "1500"], session);
+
+    // Take a second snapshot to verify overlay disappearance
+    try {
+      const snap2 = await snapshot({ interactive: true }, session);
+      const snap2Text = (snap2.data as SnapshotData)?.snapshot ?? "";
+
+      // Only verify the specific buttons we clicked are gone, not all known patterns
+      // (e.g., clicking a login-wall dismiss should not fail because a cookie banner is still present)
+      const stillPresent = clicks.some((click) => {
+        const refPattern = new RegExp(`\\[ref=${click.ref}\\]`);
+        return refPattern.test(snap2Text);
+      });
+
+      if (stillPresent) {
         const artifactName = dump("dismiss_miss", {
-          snapshot: snapText,
-          refs: snapRefs,
+          snapshot: snap2Text,
         });
-        log.warn(MODULE, "dismiss-miss", { snapshotArtifact: artifactName });
-        break;
+        log.warn(MODULE, "dismiss-miss", {
+          overlay: "clicked element still present after click + 1500ms wait",
+          snapshotArtifact: artifactName,
+        });
+      } else {
+        log.info(MODULE, "dismiss-ok", { clicks: clicks.length });
       }
+    } catch {
+      log.info(MODULE, "dismiss-ok", {
+        clicks: clicks.length,
+        note: "second snapshot failed, assuming dismiss worked",
+      });
     }
   }
 }

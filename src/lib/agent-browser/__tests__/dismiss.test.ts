@@ -81,11 +81,7 @@ describe("dismissBlockingOverlays", () => {
     fs.mkdirSync(runDir, { recursive: true });
 
     snapshotQueue.push({
-      snapshot: '- link "Jobs" [ref=e100]',
-      refs: {},
-    });
-    snapshotQueue.push({
-      snapshot: '- button "Accept all" [ref=e200]',
+      snapshot: '- link "Jobs" [ref=e100]\n- button "Accept all" [ref=e200]',
       refs: {},
     });
 
@@ -114,20 +110,57 @@ describe("dismissBlockingOverlays", () => {
     expect(hitEvent).toBeDefined();
   });
 
-  it("emits dismiss-miss for unknown button in first 30 lines", async () => {
+  it("emits dismiss-ok when overlay disappears after click", async () => {
     const runDir = path.join(tmpDir, "run-3");
     fs.mkdirSync(path.join(runDir, "artifacts"), { recursive: true });
 
-    const snapshotLines = [
-      '- button "Verwerfen" [ref=e999]',
-      ...Array.from({ length: 35 }, (_, i) => `- text "line ${i}"`),
-    ].join("\n");
-
-    snapshotQueue.push({ snapshot: snapshotLines, refs: {} });
-    snapshotQueue.push({ snapshot: "", refs: {} });
+    // First snapshot: has a known dismiss button
+    snapshotQueue.push({
+      snapshot: '- button "Descartar" [ref=e123]\n- link "Job" [ref=e456]',
+      refs: {},
+    });
+    // Second snapshot (post-click): overlay is gone
+    snapshotQueue.push({
+      snapshot: '- link "Job" [ref=e456]\n- text "Page content"',
+      refs: {},
+    });
 
     await runWithContext(
       { runId: "dismiss-3", runDir, kind: "scout", input: {} },
+      async () => {
+        await dismissBlockingOverlays();
+      },
+    );
+
+    const timelinePath = path.join(runDir, "timeline.jsonl");
+    const lines = fs.readFileSync(timelinePath, "utf8").trim().split("\n");
+    const events = lines.map((l) => JSON.parse(l));
+    const okEvent = events.find((e: any) => e.event === "dismiss-ok");
+    expect(okEvent).toBeDefined();
+    expect(okEvent.payload.clicks).toBe(1);
+
+    // No dismiss-miss should be emitted
+    const missEvent = events.find((e: any) => e.event === "dismiss-miss");
+    expect(missEvent).toBeUndefined();
+  });
+
+  it("emits dismiss-miss when overlay persists after click + wait", async () => {
+    const runDir = path.join(tmpDir, "run-3b");
+    fs.mkdirSync(path.join(runDir, "artifacts"), { recursive: true });
+
+    // First snapshot: has a known dismiss button
+    snapshotQueue.push({
+      snapshot: '- button "Descartar" [ref=e123]\n- link "Job" [ref=e456]',
+      refs: {},
+    });
+    // Second snapshot: overlay still there
+    snapshotQueue.push({
+      snapshot: '- button "Descartar" [ref=e123]\n- link "Job" [ref=e456]',
+      refs: {},
+    });
+
+    await runWithContext(
+      { runId: "dismiss-3b", runDir, kind: "scout", input: {} },
       async () => {
         await dismissBlockingOverlays();
       },
@@ -172,5 +205,38 @@ describe("dismissBlockingOverlays", () => {
     );
     expect(logEvents).toHaveLength(1);
     expect(logEvents[0].event).toBe("dismiss-attempt");
+  });
+
+  it("emits dismiss-ok when clicked button is gone even if other overlays remain", async () => {
+    const runDir = path.join(tmpDir, "run-5");
+    fs.mkdirSync(path.join(runDir, "artifacts"), { recursive: true });
+
+    // First snapshot: only login-wall dismiss button (no cookie banner)
+    snapshotQueue.push({
+      snapshot: '- button "Descartar" [ref=e1]\n- link "Job" [ref=e3]',
+      refs: {},
+    });
+    // Second snapshot: login-wall button gone, cookie banner appeared after navigation
+    // This should NOT trigger dismiss-miss because we only clicked the login-wall button
+    snapshotQueue.push({
+      snapshot: '- button "Aceptar" [ref=e2]\n- link "Job" [ref=e3]',
+      refs: {},
+    });
+
+    await runWithContext(
+      { runId: "dismiss-5", runDir, kind: "scout", input: {} },
+      async () => {
+        await dismissBlockingOverlays();
+      },
+    );
+
+    const timelinePath = path.join(runDir, "timeline.jsonl");
+    const lines = fs.readFileSync(timelinePath, "utf8").trim().split("\n");
+    const events = lines.map((l) => JSON.parse(l));
+    const okEvent = events.find((e: any) => e.event === "dismiss-ok");
+    expect(okEvent).toBeDefined();
+
+    const missEvent = events.find((e: any) => e.event === "dismiss-miss");
+    expect(missEvent).toBeUndefined();
   });
 });

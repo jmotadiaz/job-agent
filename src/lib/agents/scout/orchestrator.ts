@@ -1,17 +1,22 @@
 import { nanoid } from "nanoid";
 import * as path from "node:path";
+import * as fs from "node:fs";
 import { loadProfile } from "@/lib/profile/load";
 import { parseProfile } from "@/lib/profile/parse";
 import { hashProfile } from "@/lib/profile/hash";
 import { insertJob } from "@/lib/db/jobs";
-import { closeBrowser, resetBrowserState } from "@/lib/agent-browser/exec";
+import {
+  closeBrowser,
+  closeSession,
+  resetBrowserState,
+} from "@/lib/agent-browser/exec";
 import { appendAgentStep } from "@/lib/runtime/agent-trace";
 import {
   runWithContext,
   makeRunId,
   setRunOutcome,
 } from "@/lib/runtime/run-context";
-import { LOG_DIR } from "@/lib/runtime/paths";
+import { LOG_DIR, BLOCKED_COMPANIES_PATH } from "@/lib/runtime/paths";
 import { createScoutAgent, SCOUT_MAX_CANDIDATES } from "./agent";
 import { log } from "@/lib/utils/log";
 import type { JobDetails, ScoutResult } from "./types";
@@ -46,6 +51,21 @@ function detailsToMd(d: JobDetails): string {
   ].join("\n");
 }
 
+function loadBlockedCompanies(): string | null {
+  if (!fs.existsSync(BLOCKED_COMPANIES_PATH)) return null;
+  try {
+    const content = fs.readFileSync(BLOCKED_COMPANIES_PATH, "utf8").trim();
+    // Strip header lines, keep only entries starting with "- "
+    const entries = content
+      .split("\n")
+      .filter((line) => line.startsWith("- "))
+      .join("\n");
+    return entries || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function runScout(): Promise<ScoutResult> {
   const runId = makeRunId();
   const runDir = path.join(LOG_DIR, runId);
@@ -68,7 +88,11 @@ export async function runScout(): Promise<ScoutResult> {
       resetBrowserState();
 
       const locationLabel = location ? ` in ${location}` : "";
-      const prompt = `Search for job offers using the query: "${query}"${locationLabel}. User profile:\n\n${rawContent}`;
+      const blockedCompanies = loadBlockedCompanies();
+      const blocklistSection = blockedCompanies
+        ? `\n\n## Blocked companies\nDo NOT fetch or evaluate offers from these companies:\n${blockedCompanies}`
+        : "";
+      const prompt = `Search for job offers using the query: "${query}"${locationLabel}. User profile:\n\n${rawContent}${blocklistSection}`;
 
       log.info(MODULE, "agent invoke begin", { query });
       const startMs = Date.now();
@@ -99,6 +123,11 @@ export async function runScout(): Promise<ScoutResult> {
         setRunOutcome("error", { stage: "agent_loop", message: msg });
         return { kind: "error", stage: "agent_loop", message: msg };
       } finally {
+        if (ctx.browserSession) {
+          await closeSession(ctx.browserSession).catch(() => {
+            /* ignore if already closed */
+          });
+        }
         await closeBrowser();
       }
 
