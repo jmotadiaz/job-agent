@@ -312,3 +312,27 @@ input[type="url"]::placeholder, input[type="text"]::placeholder {
 .toast.success { border-left: 3px solid var(--green); }
 .toast.error { border-left: 3px solid var(--red); }
 .toast.info { border-left: 3px solid var(--accent); }
+
+/* --- Mobile responsive --- */
+@media (max-width: 640px) {
+  .card {
+    margin-bottom: 12px;
+  }
+  
+  .tabs {
+    gap: 16px;
+    padding-bottom: 8px;
+  }
+  
+  .tab {
+    font-size: 10px;
+  }
+  
+  details summary::-webkit-details-marker {
+    display: none;
+  }
+  
+  details summary {
+    list-style: none;
+  }
+}

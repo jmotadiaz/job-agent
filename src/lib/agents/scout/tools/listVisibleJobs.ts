@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { snapshot } from "@/lib/agent-browser/exec";
+import { snapshot, scrollDown, waitMs, waitLoad } from "@/lib/agent-browser/exec";
 import { getSeenExternalIds } from "@/lib/db/jobs";
 import { log } from "@/lib/utils/log";
 import { dump } from "@/lib/utils/dump";
@@ -37,12 +37,24 @@ export function makeListVisibleJobsTool(ctx: ScoutRunContext) {
       "Return the offers visible on the results page, excluding those already seen. Each entry has external_id, url, title, company, location, snippet.",
     inputSchema: z.object({}),
     execute: async () => {
-      const t0 = Date.now();
+        const t0 = Date.now();
       log.info(MODULE, "listVisibleJobs begin");
       try {
+        const session = ctx.browserSession ?? undefined;
+
+        // Scroll down multiple times to trigger lazy-loaded results.
+        // LinkedIn loads ~8 jobs initially; each scroll pass adds ~8 more.
+        const SCROLL_PASSES = 3;
+        for (let i = 0; i < SCROLL_PASSES; i++) {
+          log.info(MODULE, "listVisibleJobs: scroll down", { pass: i + 1, total: SCROLL_PASSES });
+          await scrollDown(800, session);
+          await waitLoad(session);
+          await waitMs(1000, session);
+        }
+
         const snap = await snapshot(
           { interactive: true, urls: true },
-          ctx.browserSession ?? undefined,
+          session,
         );
         const data = snap.data as
           | {

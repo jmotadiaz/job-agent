@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import type { Job } from "@/lib/db/jobs";
 import type { Generation } from "@/lib/db/generations";
+import { LogPanel } from "./LogPanel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ interface Toast {
   message: string;
 }
 
-type TabStatus = "all" | "shortlisted" | "applied" | "discarded";
+type TabStatus = "all" | "shortlisted" | "applied" | "discarded" | "logs";
 
 interface GenerationNode extends Generation {
   children: GenerationNode[];
@@ -583,108 +584,110 @@ function JobRow({
     )?.id ?? "";
 
   return (
-    <div className="card fade-in mb-5 overflow-hidden">
+    <div className="card fade-in mb-4 overflow-hidden">
       {/* Header row */}
       <div
-        className="px-6 py-5 cursor-pointer flex gap-5 items-start"
+        className="px-4 py-4 sm:px-6 sm:py-5 cursor-pointer"
         onClick={() => setExpanded((e) => !e)}
         role="button"
         aria-expanded={expanded}
       >
-        {/* Expand chevron */}
-        <ChevronRight
-          size={16}
-          className={`text-[var(--text-muted)] mt-0.5 transition-transform duration-150 flex-shrink-0 ${expanded ? "rotate-90" : ""}`}
-        />
-
-        {/* Job info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2.5 flex-wrap mb-1">
-            <h2 className="m-0 text-sm font-semibold text-[var(--text-primary)] whitespace-nowrap overflow-hidden text-ellipsis max-w-[400px]">
-              {job.title || "Unknown Title"}
-            </h2>
-            <span
-              className={`badge ${statusBadgeClass(job.status)} text-[10px] px-1.5 py-px opacity-80`}
-            >
-              {statusLabel(job.status)}
-            </span>
+        {/* Top row: title + actions */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+              <h2 className="m-0 text-[15px] sm:text-sm font-semibold text-[var(--text-primary)] whitespace-nowrap overflow-hidden text-ellipsis">
+                {job.title || "Unknown Title"}
+              </h2>
+              <span
+                className={`badge ${statusBadgeClass(job.status)} text-[9px] sm:text-[10px] px-1.5 py-px opacity-80`}
+              >
+                {statusLabel(job.status)}
+              </span>
+            </div>
           </div>
+
+          {/* Actions (stop propagation to avoid toggle) */}
           <div
-            style={{
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              marginBottom: 8,
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "0 6px",
-              alignItems: "center",
-            }}
+            className="flex gap-2 shrink-0"
+            onClick={(e) => e.stopPropagation()}
           >
-            {(() => {
-              const { company, location, salary } = jobSubtitle(job);
-              return (
+            <a
+              className="btn btn-ghost btn-sm"
+              href={job.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open on LinkedIn"
+            >
+              <ExternalLink size={14} />
+            </a>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleGenerate}
+              disabled={generating}
+              id={`generate-${job.id}`}
+              title="Generate CV and cover letter"
+            >
+              {generating ? (
                 <>
-                  {company && (
-                    <span style={{ fontWeight: 500 }}>{company}</span>
-                  )}
-                  {location && (
-                    <span style={{ color: "var(--text-muted)" }}>
-                      {company ? "· " : ""}
-                      {location}
-                    </span>
-                  )}
-                  {salary && (
-                    <span style={{ color: "var(--text-muted)" }}>
-                      · {salary}
-                    </span>
-                  )}
+                  <span className="spinner" />
                 </>
-              );
-            })()}
+              ) : (
+                <>
+                  <WandSparkles size={14} />
+                </>
+              )}
+            </button>
           </div>
-          {scoreBar(job.match_score)}
-          <p className="mt-2 mb-0 text-xs text-[var(--text-secondary)] line-clamp-2">
-            {job.match_reason}
-          </p>
         </div>
 
-        {/* Actions (stop propagation to avoid toggle) */}
+        {/* Company/location/salary */}
         <div
-          className="flex gap-2 shrink-0"
-          onClick={(e) => e.stopPropagation()}
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            marginBottom: 8,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0 6px",
+            alignItems: "center",
+          }}
         >
-          <a
-            className="btn btn-ghost btn-sm"
-            href={job.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open on LinkedIn"
-          >
-            <ExternalLink size={14} />
-          </a>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={handleGenerate}
-            disabled={generating}
-            id={`generate-${job.id}`}
-            title="Generate CV and cover letter"
-          >
-            {generating ? (
+          {(() => {
+            const { company, location, salary } = jobSubtitle(job);
+            return (
               <>
-                <span className="spinner" /> Generating…
+                {company && (
+                  <span style={{ fontWeight: 500 }}>{company}</span>
+                )}
+                {location && (
+                  <span style={{ color: "var(--text-muted)" }}>
+                    {company ? "· " : ""}
+                    {location}
+                  </span>
+                )}
+                {salary && (
+                  <span style={{ color: "var(--text-muted)" }}>
+                    · {salary}
+                  </span>
+                )}
               </>
-            ) : (
-              <>
-                <WandSparkles size={14} className="mr-1.5" /> Generate
-              </>
-            )}
-          </button>
+            );
+          })()}
         </div>
+
+        {/* Match score */}
+        {scoreBar(job.match_score)}
+
+        {/* Match reason */}
+        <p className="mt-2 mb-0 text-xs text-[var(--text-secondary)] line-clamp-2">
+          {job.match_reason}
+        </p>
       </div>
 
       {/* Expanded body */}
       {expanded && (
-        <div className="border-t border-[var(--border)] p-6 flex flex-col gap-6 fade-in">
+        <div className="border-t border-[var(--border)] p-4 sm:p-6 flex flex-col gap-4 sm:gap-6 fade-in">
           {/* Description */}
           <details>
             <summary className="cursor-pointer text-[13px] text-[var(--text-secondary)] font-medium mb-1.5">
@@ -752,7 +755,7 @@ function JobRow({
 
 // ─── Scout Button ─────────────────────────────────────────────────────────────
 
-function ScoutButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
+function ScoutButton({ onNewJob, collapsed }: { onNewJob: (job: Job) => void; collapsed?: boolean }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     kind: string;
@@ -777,10 +780,10 @@ function ScoutButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
   }, [onNewJob]);
 
   return (
-    <div>
+    <div className={collapsed ? "w-full" : ""}>
       <button
         id="scout-button"
-        className="btn btn-primary min-w-[180px]"
+        className={`btn btn-primary ${collapsed ? "w-full justify-center" : "min-w-[180px]"}`}
         onClick={handleClick}
         disabled={loading}
       >
@@ -790,7 +793,7 @@ function ScoutButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
           </>
         ) : (
           <>
-            <Search size={18} /> Scout LinkedIn
+            <Search size={18} /> {collapsed ? "Scout" : "Scout LinkedIn"}
           </>
         )}
       </button>
@@ -814,7 +817,7 @@ function ScoutButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
 
 // ─── Add Job Button ───────────────────────────────────────────────────────────
 
-function AddJobButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
+function AddJobButton({ onNewJob, collapsed }: { onNewJob: (job: Job) => void; collapsed?: boolean }) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -841,8 +844,8 @@ function AddJobButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
   }, [url, onNewJob]);
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-stretch gap-2">
+    <div className={`flex flex-col gap-1.5 ${collapsed ? "w-full" : ""}`}>
+      <div className={`flex items-stretch gap-2 ${collapsed ? "flex-col" : ""}`}>
         <input
           type="url"
           placeholder="Paste job URL…"
@@ -850,10 +853,10 @@ function AddJobButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleImport()}
           disabled={loading}
-          style={{ width: 240, minWidth: 0 }}
+          style={{ width: collapsed ? "100%" : 240, minWidth: 0 }}
         />
         <button
-          className="btn btn-primary flex-shrink-0"
+          className={`btn btn-primary flex-shrink-0 ${collapsed ? "w-full justify-center" : ""}`}
           onClick={handleImport}
           disabled={loading || !url.trim()}
         >
@@ -863,26 +866,27 @@ function AddJobButton({ onNewJob }: { onNewJob: (job: Job) => void }) {
             </>
           ) : (
             <>
-              <Link size={14} /> Add from URL
+              <Link size={14} /> {collapsed ? "Add" : "Add from URL"}
             </>
           )}
         </button>
       </div>
       {error && !loading && (
         <div className="fade-in px-3 py-2 rounded text-[13px] bg-(--bg-raised) border border-(--border) text-(--red)">
-          ✕ {error}
+           ✕ {error}
         </div>
       )}
     </div>
   );
 }
 
-// ─── Dashboard (main client component) ───────────────────────────────────────
+// ─── Dashboard (main client component) ──────────────────────────────────────
 
 export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
   const [tab, setTab] = useState<TabStatus>("all");
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const toastId = useRef(0);
 
   const addToast = useCallback((type: Toast["type"], message: string) => {
@@ -932,6 +936,7 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
       value: "discarded",
       count: jobs.filter((j) => j.status === "discarded").length,
     },
+    { label: "Logs", value: "logs", count: 0 },
   ];
 
   const filtered = tab === "all" ? jobs : jobs.filter((j) => j.status === tab);
@@ -940,25 +945,42 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
     <div className="min-h-screen">
       {/* Header */}
       <header className="border-b border-[var(--border)] bg-[rgba(13,13,18,0.8)] backdrop-blur-[12px] sticky top-0 z-[100]">
-        <div className="max-w-[900px] mx-auto px-6 py-4 flex items-center gap-6 flex-wrap">
-          <div>
-            <h1 className="m-0 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)] uppercase">
-              Job Scout
-            </h1>
-            <p className="m-0 text-[11px] text-[var(--text-muted)] tracking-[0.05em] uppercase">
-              Intelligence in Search
-            </p>
-          </div>
-          <div className="ml-auto flex items-start gap-3 flex-wrap">
-            <a
-              href="/log"
-              className="btn btn-ghost text-xs uppercase tracking-wider"
+        <div className="max-w-[900px] mx-auto px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="m-0 text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)] uppercase">
+                Job Scout
+              </h1>
+              <p className="m-0 text-[11px] text-[var(--text-muted)] tracking-[0.05em] uppercase">
+                Intelligence in Search
+              </p>
+            </div>
+
+            {/* Desktop: inline form + buttons */}
+            <div className="hidden sm:flex items-center gap-3">
+              <AddJobButton onNewJob={handleNewJob} />
+              <ScoutButton onNewJob={handleNewJob} />
+            </div>
+
+            {/* Mobile: actions toggle */}
+            <button
+              className="sm:hidden btn btn-ghost btn-sm"
+              onClick={() => setMobileActionsOpen((o) => !o)}
             >
-              Logs
-            </a>
-            <AddJobButton onNewJob={handleNewJob} />
-            <ScoutButton onNewJob={handleNewJob} />
+              <span className="flex items-center gap-2">
+                <span className={`transition-transform duration-200 ${mobileActionsOpen ? "rotate-90" : ""}`}>▶</span>
+                Actions
+              </span>
+            </button>
           </div>
+
+          {/* Mobile: expanded form */}
+          {mobileActionsOpen && (
+            <div className="sm:hidden mt-3 flex flex-col gap-3 fade-in border-t border-[var(--border)] pt-3">
+              <AddJobButton onNewJob={handleNewJob} collapsed />
+              <ScoutButton onNewJob={handleNewJob} collapsed />
+            </div>
+          )}
         </div>
       </header>
 
@@ -979,8 +1001,10 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
           ))}
         </div>
 
-        {/* Job list */}
-        {filtered.length === 0 ? (
+        {/* Content */}
+        {tab === "logs" ? (
+          <LogPanel />
+        ) : filtered.length === 0 ? (
           <div className="text-center px-6 py-16 text-[var(--text-muted)]">
             <div className="text-[40px] mb-4">🔍</div>
             <p className="text-[15px] m-0">

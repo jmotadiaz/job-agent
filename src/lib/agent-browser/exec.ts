@@ -150,6 +150,14 @@ export async function getText(selector: string, session?: string): Promise<strin
   return data?.text ?? "";
 }
 
+export async function scrollDown(px: number, session?: string): Promise<void> {
+  await runAgentBrowser(["scroll", "down", String(px)], session);
+}
+
+export async function waitMs(ms: number, session?: string): Promise<void> {
+  await runAgentBrowser(["wait", String(ms)], session);
+}
+
 export async function getUrl(session?: string): Promise<string> {
   const result = await runAgentBrowser(["get", "url"], session);
   const data = result.data as { url?: string } | undefined;

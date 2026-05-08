@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('server-only', () => ({}));
+
 import { openUrl, waitLoad, snapshot, closeBrowser, resetBrowserState } from '../exec';
 
 // Integration smoke test — requires agent-browser installed and a display.

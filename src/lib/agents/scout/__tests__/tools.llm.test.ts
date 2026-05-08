@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('server-only', () => ({}));
+
 import { MockLanguageModelV3 } from 'ai/test';
 import { generateText } from 'ai';
 import { createDeepInfra } from '@ai-sdk/deepinfra';

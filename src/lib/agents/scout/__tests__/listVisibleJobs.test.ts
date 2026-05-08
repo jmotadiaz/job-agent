@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+vi.mock('server-only', () => ({}));
+
+vi.mock('@/lib/utils/dump', () => ({
+  dump: vi.fn(() => ''),
+}));
+
 // Mock db before importing tools
 vi.mock('@/lib/db/jobs', () => ({
   getSeenExternalIds: vi.fn(),
@@ -8,6 +14,8 @@ vi.mock('@/lib/db/jobs', () => ({
 vi.mock('@/lib/agent-browser/exec', () => ({
   openUrl: vi.fn(),
   waitLoad: vi.fn(),
+  scrollDown: vi.fn(),
+  waitMs: vi.fn(),
   snapshot: vi.fn(),
   getText: vi.fn(),
   closeBrowser: vi.fn(),
@@ -54,32 +62,32 @@ describe('listVisibleJobs filtering', () => {
   it('filters out already-seen external_ids', async () => {
     const mockSnapshotData = {
       snapshot: `
-        https://www.linkedin.com/jobs/view/111111/
-        https://www.linkedin.com/jobs/view/222222/
-        https://www.linkedin.com/jobs/view/333333/
+        - link "Software Engineer" [ref=e38, url=https://www.linkedin.com/jobs/view/software-engineer-11111111/]
+        - link "Backend Developer" [ref=e39, url=https://www.linkedin.com/jobs/view/backend-developer-22222222/]
+        - link "Frontend Developer" [ref=e40, url=https://www.linkedin.com/jobs/view/frontend-developer-33333333/]
       `,
       refs: {},
     };
     vi.mocked(snapshot).mockResolvedValue({ success: true, data: mockSnapshotData });
-    vi.mocked(getSeenExternalIds).mockReturnValue(new Set(['111111', '222222']));
+    vi.mocked(getSeenExternalIds).mockReturnValue(new Set(['11111111', '22222222']));
 
     const ctx = makeCtx();
     const tools = makeScoutTools(ctx);
     const result = await tools.listVisibleJobs.execute?.({} as never, {} as never);
 
     expect((result as { jobs: unknown[]; new_count: number }).new_count).toBe(1);
-    expect((result as { jobs: Array<{ external_id: string }> }).jobs[0].external_id).toBe('333333');
+    expect((result as { jobs: Array<{ external_id: string }> }).jobs[0].external_id).toBe('33333333');
   });
 
   it('returns empty list when all jobs already seen', async () => {
     vi.mocked(snapshot).mockResolvedValue({
       success: true,
       data: {
-        snapshot: 'https://www.linkedin.com/jobs/view/999999/',
+        snapshot: '- link "DevOps Engineer" [ref=e41, url=https://www.linkedin.com/jobs/view/devops-engineer-99999999/]',
         refs: {},
       },
     });
-    vi.mocked(getSeenExternalIds).mockReturnValue(new Set(['999999']));
+    vi.mocked(getSeenExternalIds).mockReturnValue(new Set(['99999999']));
 
     const ctx = makeCtx();
     const tools = makeScoutTools(ctx);
@@ -94,8 +102,8 @@ describe('listVisibleJobs filtering', () => {
       success: true,
       data: {
         snapshot: `
-          https://www.linkedin.com/jobs/view/100001/
-          https://www.linkedin.com/jobs/view/100002/
+          - link "Staff Engineer" [ref=e42, url=https://www.linkedin.com/jobs/view/staff-engineer-10000111/]
+          - link "Principal Developer" [ref=e43, url=https://www.linkedin.com/jobs/view/principal-developer-10000222/]
         `,
         refs: {},
       },

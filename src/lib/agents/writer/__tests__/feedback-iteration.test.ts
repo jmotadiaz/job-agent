@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
 import fs from "node:fs";
 import path from "node:path";
 
@@ -119,6 +122,7 @@ vi.mock("@react-pdf/renderer", () => ({
 
 vi.mock("@ai-sdk/deepinfra", () => ({
   createDeepInfra: vi.fn(() => (_model: string) => ({ modelId: _model })),
+  deepinfra: vi.fn((_model: string) => ({ modelId: _model })),
 }));
 
 vi.mock("ai", async (importOriginal) => {
