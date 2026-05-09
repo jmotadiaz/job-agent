@@ -217,9 +217,12 @@ function LogIndex({
                     className="hover:bg-[var(--bg-hover)] transition-colors group"
                   >
                     <td className="px-4 py-3">
-                      <span className="text-sm font-mono text-[var(--blue)]">
+                      <button
+                        onClick={() => onSelectRun(run.runId)}
+                        className="text-sm font-mono text-[var(--blue)] hover:underline cursor-pointer bg-transparent border-none p-0 m-0"
+                      >
                         {run.runId}
-                      </span>
+                      </button>
                     </td>
                     <td className="px-4 py-3">{kindBadge(run.kind)}</td>
                     <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">

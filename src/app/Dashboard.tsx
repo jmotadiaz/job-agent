@@ -963,15 +963,17 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
             </div>
 
             {/* Mobile: actions toggle */}
-            <button
-              className="sm:hidden btn btn-ghost btn-sm"
-              onClick={() => setMobileActionsOpen((o) => !o)}
-            >
-              <span className="flex items-center gap-2">
-                <span className={`transition-transform duration-200 ${mobileActionsOpen ? "rotate-90" : ""}`}>▶</span>
-                Actions
-              </span>
-            </button>
+            <div className="sm:hidden">
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setMobileActionsOpen((o) => !o)}
+              >
+                <span className="flex items-center gap-2">
+                  <span className={`transition-transform duration-200 ${mobileActionsOpen ? "rotate-90" : ""}`}>▶</span>
+                  Actions
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Mobile: expanded form */}

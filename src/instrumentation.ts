@@ -20,5 +20,8 @@ export async function register() {
     }
 
     migrate();
+
+    const { startScoutCron } = await import("./lib/scout-cron");
+    startScoutCron();
   }
 }
