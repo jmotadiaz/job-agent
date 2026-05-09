@@ -8,6 +8,14 @@
 
 All data is local: SQLite at `data/job-agent.sqlite`, PDFs at `generated-pdfs/<jobId>/<generationId>/`.
 
+## Project intent
+
+Three guiding principles shape decisions across the codebase:
+
+- **Automate the tedious parts of job hunting.** Browsing LinkedIn, reading dozens of offers, and rewriting the CV for each one is mechanical work; the agents take it over so the user only intervenes where judgment matters.
+- **Every output is tailored, not generic.** CV and cover letter must read like they were written specifically for that offer — bullet selection, phrasing, and emphasis change per job. A one-size-fits-all output is a failure mode.
+- **The user iterates with feedback.** The dashboard exists so the user can review generated documents, give feedback, and regenerate. The agents are collaborators, not a one-shot pipeline.
+
 ## Commands
 
 ```bash
@@ -28,8 +36,15 @@ npx vitest run src/lib/agent-browser/__tests__/smoke.test.ts --no-skip
 ### AI SDK — `ToolLoopAgent` pattern
 Both agents use `ToolLoopAgent` from the `ai` package (Vercel AI SDK). Each agent is created in its own `agent.ts`, receives a `RunContext` object mutated by tools, and is invoked via `agent.generate({ prompt })` in its orchestrator. The `stopWhen` predicate checks `ctx.finalized` / `ctx.saveMatchCalled` flags set by terminal tools.
 
-### Profile as single source of truth
-`profile.md` is the user's CV. It is parsed at runtime by `src/lib/profile/parse.ts` (frontmatter via `gray-matter` for search config) and `src/lib/agents/writer/orchestrator.ts` (regex parsing for bullet catalog, skills, education). The Writer orchestrator assigns stable `b0`, `b1`, … IDs to every `-` / `*` bullet in document order — these IDs are used by the `selectBullets` tool. Format matters: bullets must use `- text` or `* text`; experience headers must be `### Company | Role | Period`.
+### `profile.md` — oversized raw material for both agents
+`profile.md` is **not the CV**. It is a deliberately oversized dossier of the user's career — every relevant role, notable achievement, metric, stack detail, scope, and context. Both agents treat it as raw material and extract what they need:
+
+- **Scout** receives the full markdown as context (injected into the prompt in `src/lib/agents/scout/orchestrator.ts`) to evaluate whether each LinkedIn offer genuinely fits the user (hard blockers, seniority, stack, location). The frontmatter `search.queries` list also drives round-robin query rotation.
+- **Writer** parses the file at runtime (`src/lib/agents/writer/orchestrator.ts`) into a bullet catalog with stable `b0`, `b1`, … IDs in document order; the `selectBullets` tool picks and rewrites the bullets that best match the saved offer.
+
+The richer and more detailed `profile.md` is, the better the Writer can tailor each output — sparse profiles produce generic CVs. **Maintenance guideline**: when editing `profile.md`, err on the side of more detail (quantified impact, technologies, scope, business context). The Writer can shorten and reshape, but cannot invent material that is not there.
+
+Format matters because the Writer parses with regex: bullets must use `- text` or `* text`; experience headers must be `### Company | Role | Period`. Frontmatter (search config) is parsed via `gray-matter` in `src/lib/profile/parse.ts`.
 
 ### DB migrations
 `src/lib/db/migrate.ts` runs on every server start via Next.js instrumentation (`src/instrumentation.ts`). It uses additive `ALTER TABLE` guards (check-then-add) — never destructive. Add new columns there, not in separate migration files.
