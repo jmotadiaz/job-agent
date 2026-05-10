@@ -87,14 +87,14 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   skillCategoryLabel: {
-    fontSize: 8,
+    fontSize: 7,
     fontFamily: "Montserrat",
     fontWeight: "bold",
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     color: PRIMARY,
     textTransform: "uppercase",
-    marginBottom: 4,
-    marginTop: 10,
+    marginBottom: 2,
+    marginTop: 4,
   },
   sectionDivider: {
     borderBottom: "0.5pt solid " + DIVIDER,
@@ -326,7 +326,7 @@ export function CvTemplate({
             <View>
               <View style={styles.sectionDivider} />
               {renderedCategories.map((cat, i) => (
-                <View key={i} style={{ marginBottom: 6 }}>
+                <View key={i} style={{ marginBottom: 2 }}>
                   <Text style={styles.skillCategoryLabel}>{cat.label}</Text>
                   {cat.items.map((item, j) => (
                     <Text key={j} style={styles.skillItem}>
