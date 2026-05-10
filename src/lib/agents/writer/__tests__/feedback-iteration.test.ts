@@ -84,6 +84,8 @@ vi.mock("@/lib/profile/parse", () => ({
       linkedinUrl: "https://linkedin.com/in/jane",
       website: null
     },
+    anchors: { bullets: [], skills: [] },
+    skillCategories: [],
     rawContent: FIXTURE_PROFILE,
   })),
 }));
@@ -170,11 +172,13 @@ function makeAgentRun(
 ) {
   return async (tools: Record<string, { execute: Function }>) => {
     await tools.composeCV.execute(
-      { 
+      {
         experience,
-        skills: ["React", "TypeScript"],
+        skill_categories: [
+          { label: "Core", items: ["React", "TypeScript"] },
+        ],
         education: [{ institution: "U1", degree: "D1", period: "2020" }]
-      }, 
+      },
       {} as never
     );
     await tools.composeCoverLetter.execute(

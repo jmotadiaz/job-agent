@@ -16,9 +16,14 @@ export interface EducationEntry {
   period: string;
 }
 
+export interface SkillCategoryEntry {
+  label: string;
+  items: string[];
+}
+
 export interface WriterRunContext {
   experience: ExperienceEntry[] | null;
-  skills: string[] | null;
+  skillCategories: SkillCategoryEntry[] | null;
   education: EducationEntry[] | null;
   coverParagraphs: string[] | null;
   rationale: Rationale | null;

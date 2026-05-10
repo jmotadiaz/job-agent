@@ -1,7 +1,7 @@
 import { makeOpenSearchTool } from "./tools/openSearch";
 import { makeListVisibleJobsTool } from "./tools/listVisibleJobs";
 import { makeFetchJobDetailTool } from "./tools/fetchJobDetail";
-import { makeSaveCurrentJobTool } from "./tools/saveCurrentJob";
+import { makeSaveJobTool } from "./tools/saveJob";
 import { makeNoMatchTool } from "./tools/noMatch";
 import { makeBlockCompanyTool } from "./tools/blockCompany";
 import type { ScoutRunContext } from "./types";
@@ -13,7 +13,7 @@ export function makeScoutTools(ctx: ScoutRunContext) {
     openSearch: makeOpenSearchTool(ctx),
     listVisibleJobs: makeListVisibleJobsTool(ctx),
     fetchJobDetail: makeFetchJobDetailTool(ctx),
-    saveCurrentJob: makeSaveCurrentJobTool(ctx),
+    saveJob: makeSaveJobTool(ctx),
     noMatch: makeNoMatchTool(ctx),
     blockCompany: makeBlockCompanyTool(ctx),
   };

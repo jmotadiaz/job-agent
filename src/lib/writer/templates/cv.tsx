@@ -46,18 +46,18 @@ const styles = StyleSheet.create({
   },
   leftCol: {
     width: "40%",
-    paddingTop: 55,
-    paddingLeft: 40,
-    paddingRight: 20,
-    paddingBottom: 40,
+    paddingTop: 45,
+    paddingLeft: 30,
+    paddingRight: 18,
+    paddingBottom: 30,
     borderRight: "0.5pt solid " + DIVIDER,
   },
   rightCol: {
     width: "60%",
-    paddingTop: 55,
-    paddingLeft: 35,
-    paddingRight: 40,
-    paddingBottom: 40,
+    paddingTop: 45,
+    paddingLeft: 28,
+    paddingRight: 30,
+    paddingBottom: 30,
   },
   name: {
     fontSize: 22,
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     color: PRIMARY,
     letterSpacing: 2,
     textTransform: "uppercase",
-    marginBottom: 45,
+    marginBottom: 30,
   },
   sectionLabel: {
     fontSize: 10,
@@ -85,6 +85,16 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 14,
     marginTop: 20,
+  },
+  skillCategoryLabel: {
+    fontSize: 8,
+    fontFamily: "Montserrat",
+    fontWeight: "bold",
+    letterSpacing: 1,
+    color: PRIMARY,
+    textTransform: "uppercase",
+    marginBottom: 4,
+    marginTop: 10,
   },
   sectionDivider: {
     borderBottom: "0.5pt solid " + DIVIDER,
@@ -148,7 +158,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   eduBlock: {
-    marginBottom: 18,
+    marginBottom: 10,
   },
   eduPeriod: {
     fontSize: 9,
@@ -176,12 +186,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   skillItem: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: "Montserrat",
     color: MUTED,
-    marginBottom: 5,
-    paddingLeft: 10,
-    lineHeight: 1.4,
+    marginBottom: 2,
+    paddingLeft: 8,
+    lineHeight: 1.3,
   },
 });
 
@@ -288,7 +298,7 @@ export function CvTemplate({
           {jobTitle && <Text style={styles.jobTitleText}>{jobTitle}</Text>}
 
           {/* Contact */}
-          <View style={{ marginBottom: 30 }}>
+          <View style={{ marginBottom: 20 }}>
             {contactItems.map((c, i) => (
               <Text key={i} style={styles.contactItem}>
                 {c}
@@ -298,7 +308,7 @@ export function CvTemplate({
 
           {/* Education */}
           {education.length > 0 && (
-            <View style={{ marginBottom: 20 }}>
+            <View style={{ marginBottom: 12 }}>
               <View style={styles.sectionDivider} />
               <Text style={styles.sectionLabel}>EDUCATION</Text>
               {education.map((e, i) => (
@@ -316,8 +326,8 @@ export function CvTemplate({
             <View>
               <View style={styles.sectionDivider} />
               {renderedCategories.map((cat, i) => (
-                <View key={i} style={{ marginBottom: 15 }}>
-                  <Text style={styles.sectionLabel}>{cat.label}</Text>
+                <View key={i} style={{ marginBottom: 6 }}>
+                  <Text style={styles.skillCategoryLabel}>{cat.label}</Text>
                   {cat.items.map((item, j) => (
                     <Text key={j} style={styles.skillItem}>
                       • {item}

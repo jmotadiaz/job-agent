@@ -43,13 +43,11 @@ import type { ScoutRunContext } from '../tools';
 function makeCtx(): ScoutRunContext {
   return {
     search: { queries: ['software engineer'], locations: ['Madrid'], remote: true },
-    lastSummary: null,
-    lastRawText: null,
     candidateCount: 0,
     noMatchCalled: false,
-    saveMatchCalled: false,
-    matchResult: null,
+    matches: [],
     reviewedJobs: new Map(),
+    rawTextByExternalId: new Map(),
     browserSession: null,
   };
 }

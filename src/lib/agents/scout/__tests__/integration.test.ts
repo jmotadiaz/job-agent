@@ -68,7 +68,6 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { createScoutAgent } from '../agent';
-import { insertJob } from '@/lib/db/jobs';
 import { runScout } from '../orchestrator';
 import { log } from '@/lib/utils/log';
 import { dismissBlockingOverlays } from '@/lib/agent-browser/exec';
@@ -90,37 +89,46 @@ afterEach(() => {
 });
 
 describe('Scout integration (Orchestrator Test)', () => {
-  it('kind: match — orchestrator succeeds when agent sets saveMatchCalled', async () => {
+  it('kind: matches — orchestrator returns saved jobs when agent populated ctx.matches', async () => {
     vi.mocked(createScoutAgent).mockReturnValue({
       agent: { generate: vi.fn().mockResolvedValue({}) } as any,
       ctx: {
-        saveMatchCalled: true,
-        noMatchCalled: false,
         candidateCount: 1,
-        lastSummary: {
-          external_id: '123', url: '...', title: 'Dev', company: 'Tech', location: 'Remote', summary_md: '...',
-          details: {
-            role: 'Dev', company: 'Tech', location: 'Remote', remote: 'yes', contract: 'full-time',
-            experience_required: '3', role_type: 'backend', primary_tech: ['Go'], secondary_tech: [],
-            key_responsibilities: ['Build'], salary: '80k', hard_blockers: 'none',
+        noMatchCalled: false,
+        matches: [
+          {
+            id: 'job-1',
+            external_id: '123',
+            url: 'https://example.com/123',
+            title: 'Dev',
+            company: 'Tech',
+            location: 'Remote',
+            description_md: '...',
+            match_score: 0.9,
+            match_reason: 'Good',
+            status: 'shortlisted',
+            fetched_at: 1700000000,
           },
-        },
-        matchResult: { score: 0.9, reason: 'Good' },
+        ],
+        reviewedJobs: new Map(),
+        rawTextByExternalId: new Map(),
       } as any,
     });
 
     const result = await runScout();
-    expect(result.kind).toBe('match');
-    expect(insertJob).toHaveBeenCalled();
+    expect(result.kind).toBe('matches');
+    if (result.kind === 'matches') expect(result.jobs).toHaveLength(1);
   });
 
-  it('kind: no_match — orchestrator succeeds when agent sets noMatchCalled', async () => {
+  it('kind: no_match — orchestrator returns no_match when no jobs saved', async () => {
     vi.mocked(createScoutAgent).mockReturnValue({
       agent: { generate: vi.fn().mockResolvedValue({}) } as any,
       ctx: {
-        saveMatchCalled: false,
-        noMatchCalled: true,
         candidateCount: 3,
+        noMatchCalled: true,
+        matches: [],
+        reviewedJobs: new Map(),
+        rawTextByExternalId: new Map(),
       } as any,
     });
 
@@ -175,32 +183,25 @@ describe('Scout run observability', () => {
         }),
       } as any,
       ctx: {
-        saveMatchCalled: true,
-        noMatchCalled: false,
         candidateCount: 1,
-        lastSummary: {
-          external_id: '456',
-          url: 'https://example.com/job',
-          title: 'Senior Dev',
-          company: 'TechCorp',
-          location: 'Remote',
-          summary_md: 'A great job',
-          details: {
-            role: 'Senior Dev',
+        noMatchCalled: false,
+        matches: [
+          {
+            id: 'job-456',
+            external_id: '456',
+            url: 'https://example.com/job',
+            title: 'Senior Dev',
             company: 'TechCorp',
             location: 'Remote',
-            remote: 'yes',
-            contract: 'full-time',
-            experience_required: '5',
-            role_type: 'backend',
-            primary_tech: ['Go'],
-            secondary_tech: ['K8s'],
-            key_responsibilities: ['Build APIs'],
-            salary: '100k',
-            hard_blockers: 'none',
+            description_md: 'A great job',
+            match_score: 0.85,
+            match_reason: 'Good match',
+            status: 'shortlisted',
+            fetched_at: 1700000000,
           },
-        },
-        matchResult: { score: 0.85, reason: 'Good match' },
+        ],
+        reviewedJobs: new Map(),
+        rawTextByExternalId: new Map([['456', 'raw description']]),
       } as any,
     };
   }
@@ -264,7 +265,7 @@ describe('Scout run observability', () => {
 
     const meta = JSON.parse(fs.readFileSync(path.join(runDir!, 'meta.json'), 'utf8'));
     expect(meta.kind).toBe('scout');
-    expect(meta.outcome).toBe('match');
+    expect(meta.outcome).toBe('matches');
     expect(typeof meta.duration_ms).toBe('number');
     expect(meta.duration_ms).toBeGreaterThanOrEqual(0);
     expect(meta.input).toBeDefined();

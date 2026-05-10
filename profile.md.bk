@@ -1,0 +1,105 @@
+---
+search:
+  queries:
+    - Staff Frontend Engineer
+    - Senior Frontend Engineer
+  location:
+    - España
+    - Ireland
+    - United Kingdom
+  remote: true
+  experience_level: senior
+profile:
+  name: Javier Mota Diaz
+  role: Frontend Architect
+  email: javimota83@gmail.com
+  phone: "+34 623 136 549"
+  location: Seville, Spain
+  linkedinUrl: https://www.linkedin.com/in/javier-mota/
+  website: null
+---
+
+## Search Preferences
+
+**Hard excludes:** Do not shortlist offers from tourism/travel companies (OTAs, airlines, hotels, travel tech) or IT consulting firms / body-shop agencies (companies whose core business is outsourcing engineers to third-party clients). These environments are not aligned with my current career goals.
+
+# Javier Mota Diaz - Frontend Architect
+
+Seville, Spain | javimota83@gmail.com | +34 623 136 549 | [linkedin.com/in/javier-mota/](https://www.linkedin.com/in/javier-mota/)
+
+## Professional Summary
+
+Advanced Senior Frontend Engineer and Software Architect with over 12 years of experience building high-traffic web platforms, scalable architectures, and Micro-Frontends (MFEs) systems. Highly specialized in the JavaScript/TypeScript ecosystem, React, and Node.js for Fullstack development. I have a proven track record of leading complex technological transitions from legacy monolithic systems to distributed, resilient, and efficient ecosystems leveraging React, Vite, Webpack, Module Federation, and ES Modules Import Maps, consistently demonstrating an ability to reinvent myself and rapidly adopt modern paradigms.
+
+My approach is heavily focused on business impact: I have drastically reduced "Customer Lead Time" (by up to 34%), increased deployment frequency (by over 250%), and minimized failure/rollback rates by establishing robust testing practices, continuous integration, and strict cross-domain contracts (Frontend Testing Pyramid, Contract Testing for Backend-for-Frontend, and Product Libraries).
+
+Beyond my core expertise in Frontend Architecture and platform evolution towards modern patterns (Clean Architecture, Data Mesh geared towards Frontend Clickstream), I am actively expanding my capabilities into AI Engineering using tools such as Vertex AI, Model Context Protocol (MCP), and the development of intelligent agents.
+
+I am looking to leverage my architectural vision, technical leadership, and product-oriented mindset in highly demanding environments—preferably within the financial sector or other complex industries—that require technological modernization, innovation in user experience, and the progressive adoption of AI-based solutions.
+
+---
+
+## Experience
+
+### eDreams Odigeo | Advanced Senior Frontend Engineer & Frontend Architect | 2021 - Present
+
+- **Spearheaded and fully defined the Micro-Frontends (MFEs) architecture**, replacing a 15-year-old centralized monolithic system.
+- **Provided continuous, hands-on technical mentoring** to multiple development teams throughout the entire MFE migration.
+- **Orchestrated a 256% growth in monthly release volume** (scaling from 25 to 89 monthly deployments) and isolated failures, reducing the operational rollback rate from 16% to 5.6%, by adopting MFE architecture and strictly defining contracts.
+- **Accelerated the Customer Lead Time (CLT)** by 34.31% (from 8.54 to 5.61 days), surpassing the initial 20% target and translating architectural efficiency into improved business _time-to-market_.
+- **Designed a centralized MFE Hub and "Host Applications" schemas** based on client-side routers and dynamic injection via Import Maps, optimizing code downloading, reducing overrides, and applying tree-shaking for desktop/mobile splitting.
+- **Designed and deployed an SSR Micro-Frontends prototype using Next.js** with partial rendering and cross-navigation smart prefetching, eliminating perceived performance loss when navigating between domains/MFEs.
+- **Developed and implemented the GraphQL client** (based on Tanstack Query) for global state management and Backend-for-Frontend (BFF) synchronization, giving UI developers full control over frontend data models.
+- **Co-designed the AI Trip Assistant integration**, embedding LLM-based conversational agents (Vertex AI) into the web interface via the Model Context Protocol (MCP); structured mechanisms to inject user context analysis and search histories as tools for AI agents. <!-- TODO: añadir scope o métrica concreta (usuarios alcanzados, squads que adoptaron, lift en engagement/conversión) -->
+- **Designed Frontend Clickstream strategies in Data Mesh architectures**, unifying semantic URL hierarchies, standardizing UI event capture, and linking frontend events directly with backend/BFF aggregates; cut local lead time by ~5% and eliminated duplicated/inconsistent event definitions across teams.
+
+### Brújula, a CMC Company (now CGI) | Frontend Architect & Frontend Manager | 2014 - 2021
+
+**Meliá Hotels International (2020 - 2021) — Frontend Architect for Back-Office Digitization**
+
+- **Built a Fullstack and Frontend architecture from scratch** using React, TypeScript, and Node.js (Express), shipping 12 back-office applications that replaced an Excel-based operational workflow used by 100+ corporate operations users (revenue management, front office, F&B, finance).
+- **Established a robust and scalable Design System** using Styled-Components, Styled-System, and Material-UI, cutting per-screen local lead time by ~60% (from ~5 to ~2 days) and creating visual cohesion across all internal tools.
+- **Streamlined data modeling and consumption** using Apollo Client and React Query on the frontend, coupled with REST (OpenAPI) and GraphQL APIs on the Node.js backend with Prisma ORM over MySQL, dramatically improving end-to-end type safety.
+
+**Cliente: eDreams (via Brújula) (2018 - 2020) — Frontend Lead**
+
+- **Managed and led a dedicated team of frontend developers**, scaling the unit from 20 to 35 engineers; owned hiring (technical interviews) and continuous performance evaluations.
+- **Cut TTI by ~300ms** on Desktop and Mobile in the Dynpack search/booking flow by restructuring resource packaging and delivery via advanced Webpack ecosystems.
+
+**todopatterson (2018) — Frontend Manager**
+
+- **Directed technical deliveries** for major corporate accounts (Barceló, Camper, Grupo Piñero) using a diverse stack (ES6, BEM, React, Angular) tailored to each client's constraints.
+- **Led technical presales** and architectural estimates, acting as direct liaison between business requirements and technical feasibility.
+
+**Brújula IT — Internal Development and Dynpack Product (2014 - 2018) — Senior Frontend Developer**
+
+- **Operated as a key developer in the construction of the Dynpack product** (dynamic Flight + Hotel combination).
+- **Institutionalized a component-driven design culture** by proactively developing a Sass-based Design System adopted company-wide.
+- **Integrated early E2E testing methodologies** by incorporating Selenium and Cucumber, pioneering quality assurance practices within the company.
+
+### Previous Roles (2012 - 2014)
+
+- **Kitmaker Entertainment (2014)**: Backend PHP Developer. Built complex subscription and payment platforms based on CodeIgniter, rapidly adapting to strict security requirements and gateway integrations.
+- **MobiAdvanced (2012 - 2014)**: Fullstack Web Developer building applications in Symfony2 and dynamic interfaces by adopting emerging component libraries and patterns of that time, demonstrating early technological versatility.
+
+---
+
+## Skills
+
+- **Core**: JavaScript (ES6+), TypeScript, HTML5, CSS3/SCSS.
+- **Architecture & Patterns**: Micro-Frontends (MFEs), Module Federation, Import Maps, Backend-for-Frontend (BFF), Clean Architecture, Domain-Driven Design (DDD), Design Systems.
+- **Frameworks/Libs**: React, Next.js, Astro.js, HTMX, Apollo Client, React Query, Redux, GraphQL.
+- **Backend (Node Fullstack)**: Node.js, Express, Prisma ORM, MySQL, MongoDB, PHP.
+- **AI Engineering**: Model Context Protocol (MCP), AI Agent Integration (Google Vertex AI).
+- **Testing**: Vitest, Jest, React Testing Library, Playwright, Cypress, Contract Testing, Selenium, Cucumber.
+- **Tools & Infra**: Webpack, Vite, Docker, CI/CD, JBoss, Istio, Datadog APM, Fullstory.
+
+## Education & Languages
+
+- **Higher Technician in Computer Application Development (DAI)** | IES Majuelo, Seville | 2010 - 2012
+- **Bachelor's Degree in History** | University of Seville | 2002 - 2009
+
+**Languages:**
+
+- Spanish (Native)
+- English (Fluent - International Professional Environments)

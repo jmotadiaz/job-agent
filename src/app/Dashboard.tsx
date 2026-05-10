@@ -760,6 +760,7 @@ function ScoutButton({ onNewJob, collapsed }: { onNewJob: (job: Job) => void; co
   const [result, setResult] = useState<{
     kind: string;
     reason?: string;
+    jobs?: unknown[];
   } | null>(null);
 
   const handleClick = useCallback(async () => {
@@ -769,8 +770,8 @@ function ScoutButton({ onNewJob, collapsed }: { onNewJob: (job: Job) => void; co
       const res = await fetch("/api/scout/run", { method: "POST" });
       const data = await res.json();
       setResult(data);
-      if (data.kind === "match" && data.job) {
-        onNewJob(data.job);
+      if (data.kind === "matches" && Array.isArray(data.jobs)) {
+        for (const job of data.jobs) onNewJob(job);
       }
     } catch {
       setResult({ kind: "error", reason: "Network error" });
@@ -800,12 +801,14 @@ function ScoutButton({ onNewJob, collapsed }: { onNewJob: (job: Job) => void; co
       {result && !loading && (
         <div
           className={`fade-in mt-2.5 px-3.5 py-2.5 rounded-lg text-[13px] ${
-            result.kind === "match"
+            result.kind === "matches" && (result.jobs?.length ?? 0) > 0
               ? "bg-[var(--green-bg)] border border-[rgba(52,211,153,0.2)] text-[var(--green)]"
               : "bg-[var(--bg-raised)] border border-[var(--border)] text-[var(--text-secondary)]"
           }`}
         >
-          {result.kind === "match" && "✓ Found a match! See new job below."}
+          {result.kind === "matches" &&
+            (result.jobs?.length ?? 0) > 0 &&
+            `✓ Found ${result.jobs!.length} match${result.jobs!.length === 1 ? "" : "es"}! See new job${result.jobs!.length === 1 ? "" : "s"} below.`}
           {result.kind === "no_match" && `↩ No match: ${result.reason}`}
           {result.kind === "error" &&
             `✕ Error: ${(result as { message?: string }).message ?? result.reason}`}

@@ -13,12 +13,10 @@ export function makeFinalizeGenerationTool(ctx: WriterRunContext) {
       rationale: z.object({
         priorityRequirements: z.array(z.string()).describe("3-5 signals/requirements extracted from the job offer."),
         text: z.string().describe(
-          "Internal curation log in Spanish for the user to review the generation decisions. " +
-          "Structure: (1) **Bullets incluidos** — for each selected bullet, which priority requirement it covers; " +
-          "(2) **Bullets excluidos** — each dropped bullet with the reason (recency budget / no job signal / replaced by stronger entry); " +
-          "(3) **Decisiones de redacción** — key rewrites made and why (what changed from the original profile text); " +
-          "(4) **Trade-offs** — hard choices such as a role cut entirely for the page constraint or skills reordered; " +
-          "(5) **Feedback sugerido** — 2-3 concrete questions the user could answer to improve the next iteration."
+          "Internal curation log in Spanish, following <rationale_rule> in the system instructions exactly. " +
+          "Sections (in this order, with these exact headers): " +
+          "**Bullets incluidos**, **Bullets excluidos**, **Decisiones de redacción** (Original/Final/Razón blocks with literal quotes), " +
+          "**Trade-offs**, **Feedback sugerido**."
         )
       })
     }),
@@ -28,9 +26,12 @@ export function makeFinalizeGenerationTool(ctx: WriterRunContext) {
         log.warn(MODULE, "finalizeGeneration: missing experience");
         return { error: "You must call composeCV before finalizing." };
       }
-      if (!ctx.skills) {
-        log.warn(MODULE, "finalizeGeneration: missing skills");
-        return { error: "You must call composeCV before finalizing (skills missing)." };
+      if (!ctx.skillCategories || ctx.skillCategories.length === 0) {
+        log.warn(MODULE, "finalizeGeneration: missing skillCategories");
+        return {
+          error:
+            "You must call composeCV before finalizing (skill_categories missing).",
+        };
       }
       if (!ctx.education) {
         log.warn(MODULE, "finalizeGeneration: missing education");
@@ -48,7 +49,11 @@ export function makeFinalizeGenerationTool(ctx: WriterRunContext) {
       
       log.info(MODULE, "finalizeGeneration end", {
         experienceCount: ctx.experience.length,
-        skillCount: ctx.skills.length,
+        skillCategoryCount: ctx.skillCategories.length,
+        skillCount: ctx.skillCategories.reduce(
+          (acc, c) => acc + c.items.length,
+          0,
+        ),
         paragraphCount: ctx.coverParagraphs.length,
         rationaleTextLen: ctx.rationale.text.length,
       });

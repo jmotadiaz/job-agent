@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import fs from "node:fs";
 import path from "node:path";
 import { renderToFile, type DocumentProps } from "@react-pdf/renderer";
-import { loadProfile, PROFILE_PATH } from "@/lib/profile/load";
+import { loadProfile } from "@/lib/profile/load";
 import { parseProfile } from "@/lib/profile/parse";
 import { hashProfile } from "@/lib/profile/hash";
 import { getJobById } from "@/lib/db/jobs";
@@ -53,13 +53,36 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
         length: profileContent.length,
       });
 
-      const { profile } = parseProfile(profileContent);
+      const { profile, anchors, skillCategories } = parseProfile(profileContent);
 
       // Build prompt
       const jobDescription = job.raw_snapshot || job.description_md;
-      let prompt = `Adapt the CV and cover letter for the offer below. Read the offer first, extract its 3-5 priority requirements, then compose the experience, skills, and education accordingly. Apply the resume_language_principles, recency budget, and cover_letter structure from your system instructions.\n\n`;
+      let prompt = `Adapt the CV and cover letter for the offer below. Read the offer first, extract its 3-5 priority requirements, then compose the experience, skill_categories, and education accordingly. Apply bullet_rules, recency_budget, and cover_letter structure from your system instructions.\n\n`;
+      prompt += `<target_company>${job.company}</target_company>\n`;
+      prompt += `<target_title>${job.title}</target_title>\n`;
       prompt += `<job_offer>\n${jobDescription}\n</job_offer>\n\n`;
-      prompt += `<candidate_profile>\n${profileContent}\n</candidate_profile>\n`;
+      prompt += `<candidate_profile>\n${profileContent}\n</candidate_profile>\n\n`;
+
+      if (anchors.bullets.length > 0 || anchors.skills.length > 0) {
+        prompt += `<anchors note="These are MUST-INCLUDE items from the profile. Drop only if there is a hard incompatibility with the offer; if dropped, explain why in the rationale.">\n`;
+        if (anchors.bullets.length > 0) {
+          prompt += `bullets (match by case-insensitive substring against the profile bullet text):\n`;
+          for (const b of anchors.bullets) prompt += `  - ${b}\n`;
+        }
+        if (anchors.skills.length > 0) {
+          prompt += `skills (must appear in skill_categories under the matching category):\n`;
+          for (const s of anchors.skills) prompt += `  - ${s}\n`;
+        }
+        prompt += `</anchors>\n\n`;
+      }
+
+      if (skillCategories.length > 0) {
+        prompt += `<skill_categories note="Preserve these category labels. Pick 2-5 items per category by relevance to the offer. Use 2-4 categories total to fit one page.">\n`;
+        for (const cat of skillCategories) {
+          prompt += `${cat.label}: ${cat.items.join(", ")}\n`;
+        }
+        prompt += `</skill_categories>\n`;
+      }
 
       const isIteration = !!parentGenerationId;
 
@@ -91,7 +114,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
 
       const ctx: WriterRunContext = {
         experience: null,
-        skills: null,
+        skillCategories: null,
         education: null,
         coverParagraphs: null,
         rationale: null,
@@ -147,12 +170,12 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
 
         if (
           !ctx.experience ||
-          !ctx.skills ||
+          !ctx.skillCategories ||
           !ctx.education ||
           !ctx.coverParagraphs
         ) {
           throw new Error(
-            "Writer agent did not produce experience, skills, education, and cover letter",
+            "Writer agent did not produce experience, skill_categories, education, and cover letter",
           );
         }
 
@@ -199,7 +222,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
           website: profile.website || undefined,
           bullets: flatBullets,
           education: ctx.education,
-          skillCategories: [{ label: "Skills", items: ctx.skills }],
+          skillCategories: ctx.skillCategories,
         }) as React.ReactElement<DocumentProps>,
         cvPath,
       );
@@ -230,7 +253,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
         cv_path: cvPath,
         cover_path: coverPath,
         bullets_json: JSON.stringify(ctx.experience),
-        skills_json: JSON.stringify(ctx.skills),
+        skills_json: JSON.stringify(ctx.skillCategories),
         cover_paragraphs_json: JSON.stringify(ctx.coverParagraphs),
         rationale_json: ctx.rationale ? JSON.stringify(ctx.rationale) : null,
         parent_generation_id: parentGenerationId ?? null,

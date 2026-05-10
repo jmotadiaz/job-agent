@@ -116,8 +116,7 @@ export function makeFetchJobDetailTool(ctx: ScoutRunContext) {
           raw_len,
         };
         ctx.reviewedJobs.set(external_id, summary);
-        ctx.lastSummary = summary;
-        ctx.lastRawText = rawText;
+        ctx.rawTextByExternalId.set(external_id, rawText);
 
         log.info(MODULE, "fetchJobDetail end", {
           external_id,

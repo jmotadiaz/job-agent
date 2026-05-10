@@ -34,22 +34,24 @@ export const JobSummarySchema = z.object({
   raw_len: z.number(),
 });
 
+const ScoutPublicJobSchema = z.object({
+  id: z.string(),
+  external_id: z.string(),
+  url: z.string(),
+  title: z.string(),
+  company: z.string(),
+  location: z.string(),
+  description_md: z.string(),
+  match_score: z.number(),
+  match_reason: z.string(),
+  status: z.literal('shortlisted'),
+  fetched_at: z.number(),
+});
+
 export const ScoutResultSchema = z.discriminatedUnion('kind', [
   z.object({
-    kind: z.literal('match'),
-    job: z.object({
-      id: z.string(),
-      external_id: z.string(),
-      url: z.string(),
-      title: z.string(),
-      company: z.string(),
-      location: z.string(),
-      description_md: z.string(),
-      match_score: z.number(),
-      match_reason: z.string(),
-      status: z.literal('shortlisted'),
-      fetched_at: z.number(),
-    }),
+    kind: z.literal('matches'),
+    jobs: z.array(ScoutPublicJobSchema),
   }),
   z.object({
     kind: z.literal('no_match'),
@@ -62,6 +64,8 @@ export const ScoutResultSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
+export type ScoutPublicJob = z.infer<typeof ScoutPublicJobSchema>;
+
 export type JobCard = z.infer<typeof JobCardSchema>;
 export type JobDetails = z.infer<typeof JobDetailsSchema>;
 export type JobSummary = z.infer<typeof JobSummarySchema>;
@@ -69,14 +73,14 @@ export type ScoutResult = z.infer<typeof ScoutResultSchema>;
 
 export interface ScoutRunContext {
   search: import("@/lib/profile/parse").SearchConfig;
-  lastSummary: JobSummary | null;
-  lastRawText: string | null;
   candidateCount: number;
   noMatchCalled: boolean;
-  saveMatchCalled: boolean;
-  matchResult: { score: number; reason: string } | null;
+  /** Jobs persisted to DB during this run (view of DB state for this run). */
+  matches: ScoutPublicJob[];
   /** Map of every job fetched in this run, keyed by external_id */
   reviewedJobs: Map<string, JobSummary>;
+  /** Raw description text for each fetched job, keyed by external_id */
+  rawTextByExternalId: Map<string, string>;
   /** Shared browser session name for the whole scout run */
   browserSession: string | null;
 }

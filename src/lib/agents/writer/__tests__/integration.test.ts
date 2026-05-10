@@ -21,6 +21,8 @@ vi.mock('@/lib/profile/parse', () => ({
       location: 'Test Location',
       linkedinUrl: 'https://linkedin.com/in/test'
     },
+    anchors: { bullets: [], skills: [] },
+    skillCategories: [],
     rawContent: '# Profile',
   })),
 }));
@@ -86,7 +88,7 @@ describe('Writer integration (Orchestrator Test)', () => {
   it('generates files when agent finalizes', async () => {
     vi.mocked(createWriterAgent).mockImplementation((ctx: any) => {
       ctx.experience = [{ company: 'C1', role: 'R1', period: 'P1', bullets: ['B1'] }];
-      ctx.skills = ['React', 'TypeScript'];
+      ctx.skillCategories = [{ label: 'Core', items: ['React', 'TypeScript'] }];
       ctx.education = [{ institution: 'U1', degree: 'D1', period: '2020' }];
       ctx.coverParagraphs = ['P1', 'P2'];
       ctx.rationale = { priorityRequirements: ['R1'], text: 'Rationale text' };

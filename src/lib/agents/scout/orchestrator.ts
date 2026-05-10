@@ -1,10 +1,8 @@
-import { nanoid } from "nanoid";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { loadProfile } from "@/lib/profile/load";
 import { parseProfile } from "@/lib/profile/parse";
 import { hashProfile } from "@/lib/profile/hash";
-import { insertJob } from "@/lib/db/jobs";
 import {
   closeBrowser,
   closeSession,
@@ -19,7 +17,7 @@ import {
 import { LOG_DIR, BLOCKED_COMPANIES_PATH } from "@/lib/runtime/paths";
 import { createScoutAgent, SCOUT_MAX_CANDIDATES } from "./agent";
 import { log } from "@/lib/utils/log";
-import type { JobDetails, ScoutResult } from "./types";
+import type { ScoutResult } from "./types";
 
 const MODULE = "scout/orchestrator";
 
@@ -32,23 +30,6 @@ function pickNextPair(queries: string[], locations: string[]): { query: string; 
   const query = queries[Math.floor(lastUsedPairIndex / locCount)];
   const location = locations.length > 0 ? locations[lastUsedPairIndex % locations.length] : undefined;
   return { query, location };
-}
-
-function detailsToMd(d: JobDetails): string {
-  return [
-    `- **Role:** ${d.role}`,
-    `- **Company:** ${d.company}`,
-    `- **Location:** ${d.location}`,
-    `- **Remote:** ${d.remote}`,
-    `- **Contract:** ${d.contract}`,
-    `- **Experience required:** ${d.experience_required}`,
-    `- **Role type:** ${d.role_type}`,
-    `- **Primary tech (required):** ${d.primary_tech.join(", ") || "Not specified"}`,
-    `- **Secondary tech (nice-to-have):** ${d.secondary_tech.join(", ") || "Not specified"}`,
-    `- **Key responsibilities:** ${d.key_responsibilities.join("; ") || "Not specified"}`,
-    `- **Salary:** ${d.salary}`,
-    `- **Hard blockers:** ${d.hard_blockers}`,
-  ].join("\n");
 }
 
 function loadBlockedCompanies(): string | null {
@@ -132,52 +113,20 @@ export async function runScout(): Promise<ScoutResult> {
       }
 
       const duration = Date.now() - startMs;
-      const kind = ctx.saveMatchCalled ? "match" : "no_match";
+      const matchCount = ctx.matches.length;
       log.info(MODULE, "agent result", {
-        kind,
+        kind: matchCount > 0 ? "matches" : "no_match",
         duration,
         candidateCount: ctx.candidateCount,
+        matchCount,
       });
 
-      // Translate agent outcome to ScoutResult
-      if (ctx.saveMatchCalled && ctx.lastSummary && ctx.matchResult) {
-        const summary = ctx.lastSummary;
-        const job = insertJob({
-          id: nanoid(),
-          source: "linkedin",
-          external_id: summary.external_id,
-          url: summary.url,
-          title: summary.title,
-          company: summary.company,
-          location: summary.location,
-          description_md: detailsToMd(summary.details),
-          raw_snapshot: ctx.lastRawText ?? null,
-          match_score: ctx.matchResult.score,
-          match_reason: ctx.matchResult.reason,
-          status: "shortlisted",
+      if (matchCount > 0) {
+        setRunOutcome("matches", {
+          jobIds: ctx.matches.map((m) => m.id),
+          count: matchCount,
         });
-        log.info(MODULE, "persist", {
-          jobId: job.id,
-          external_id: job.external_id,
-          title: job.title,
-        });
-        setRunOutcome("match", { jobId: job.id });
-        return {
-          kind: "match",
-          job: {
-            id: job.id,
-            external_id: job.external_id,
-            url: job.url,
-            title: job.title,
-            company: job.company,
-            location: job.location,
-            description_md: job.description_md,
-            match_score: job.match_score,
-            match_reason: job.match_reason,
-            status: "shortlisted",
-            fetched_at: job.fetched_at,
-          },
-        };
+        return { kind: "matches", jobs: ctx.matches };
       }
 
       const reason = ctx.noMatchCalled
@@ -186,7 +135,7 @@ export async function runScout(): Promise<ScoutResult> {
           ? `Se revisaron ${SCOUT_MAX_CANDIDATES} candidatos sin encontrar match`
           : "El agente terminó sin resultado";
 
-      log.info(MODULE, "persist", { kind: "no_match", reason });
+      log.info(MODULE, "no match", { reason });
       setRunOutcome("no_match", { reason });
       return { kind: "no_match", reason };
     },

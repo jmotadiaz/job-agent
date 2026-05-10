@@ -18,9 +18,23 @@ export interface ProfileInfo {
   website?: string | null;
 }
 
+export interface ProfileAnchors {
+  /** Bullet substrings (case-insensitive) that MUST appear in the CV. */
+  bullets: string[];
+  /** Skills that MUST appear in the CV regardless of the offer. */
+  skills: string[];
+}
+
+export interface SkillCategory {
+  label: string;
+  items: string[];
+}
+
 export interface ParsedProfile {
   search: SearchConfig;
   profile: ProfileInfo;
+  anchors: ProfileAnchors;
+  skillCategories: SkillCategory[];
   rawContent: string;
 }
 
@@ -71,6 +85,24 @@ export function parseProfile(content: string): ParsedProfile {
     locations = [s.location];
   }
 
+  const a = data.anchors;
+  const anchors: ProfileAnchors = {
+    bullets:
+      a && Array.isArray(a.bullets)
+        ? (a.bullets as unknown[]).filter(
+            (s): s is string => typeof s === "string" && s.trim() !== "",
+          )
+        : [],
+    skills:
+      a && Array.isArray(a.skills)
+        ? (a.skills as unknown[]).filter(
+            (s): s is string => typeof s === "string" && s.trim() !== "",
+          )
+        : [],
+  };
+
+  const skillCategories = parseSkillCategories(body);
+
   return {
     search: {
       queries,
@@ -88,6 +120,34 @@ export function parseProfile(content: string): ParsedProfile {
       linkedinUrl: p.linkedinUrl,
       website: p.website ?? null,
     },
+    anchors,
+    skillCategories,
     rawContent: body.trim(),
   };
+}
+
+/**
+ * Extracts skill categories from a markdown body.
+ * Looks for a `## Skills` section with bullets of the form
+ * `- **Label**: item1, item2, item3`.
+ */
+function parseSkillCategories(body: string): SkillCategory[] {
+  const skillsSectionMatch = body.match(/^##\s+Skills\s*$([\s\S]*?)(?=^##\s|\Z)/m);
+  if (!skillsSectionMatch) return [];
+  const section = skillsSectionMatch[1];
+
+  const categories: SkillCategory[] = [];
+  const lineRe = /^\s*[-*]\s+\*\*([^*]+?)\*\*\s*:\s*(.+?)\s*\.?\s*$/gm;
+  let m: RegExpExecArray | null;
+  while ((m = lineRe.exec(section)) !== null) {
+    const label = m[1].trim();
+    const items = m[2]
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (label && items.length > 0) {
+      categories.push({ label, items });
+    }
+  }
+  return categories;
 }
