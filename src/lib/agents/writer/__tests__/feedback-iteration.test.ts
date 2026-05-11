@@ -154,7 +154,7 @@ vi.mock("ai", async (importOriginal) => {
 // ──────────────────────────────────────────────────────────────
 
 import { ToolLoopAgent } from "ai";
-import { insertGeneration, listGenerationsForJob } from "@/lib/db/generations";
+import { listGenerationsForJob } from "@/lib/db/generations";
 import { runWriter } from "../orchestrator";
 
 type FakeClass = typeof ToolLoopAgent & {
@@ -356,11 +356,6 @@ describe("Writer feedback & iteration integration", () => {
   it("(d) no endpoint allows editing feedback of an existing generation", async () => {
     const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
 
-    // The design guarantees this: insertGeneration is INSERT (no UPDATE),
-    // and there is no PATCH /api/generations/[id] route that accepts feedback fields.
-    // Here we verify at the DB layer: calling insertGeneration twice with the same id throws.
-    const { insertGeneration: realInsert } =
-      await import("@/lib/db/generations");
     setFakeRun(
       makeAgentRun([{ company: "C1", role: "R1", period: "P1", bullets: ["Built React apps"] }]),
     );

@@ -271,7 +271,6 @@ export function CvTemplate({
   linkedin,
   linkedinUrl,
   website,
-  summary,
   bullets,
   skills = [],
   skillCategories = [],

@@ -69,11 +69,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { createScoutAgent } from '../agent';
 import { runScout } from '../orchestrator';
-import { log } from '@/lib/utils/log';
-import { dismissBlockingOverlays } from '@/lib/agent-browser/exec';
-
 let tmpDir: string;
-let originalLogDir: string;
 
 beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scout-int-test-'));

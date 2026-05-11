@@ -27,7 +27,6 @@ beforeEach(() => {
   mockExecFile.mockImplementation(
     (_cmd: string, args: string[], _opts: unknown, cb: Function) => {
       const hasSnapshot = args.includes("snapshot");
-      const hasClick = args.includes("click");
 
       if (hasSnapshot) {
         const data = snapshotQueue.shift() ?? { snapshot: "", refs: {} };
