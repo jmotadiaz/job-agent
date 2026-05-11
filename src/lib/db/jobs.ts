@@ -15,6 +15,8 @@ export interface Job {
   match_reason: string;
   status: "new" | "shortlisted" | "applied" | "discarded";
   fetched_at: number;
+  search_query: string | null;
+  search_location: string | null;
 }
 
 export function getSeenExternalIds(source: string): Set<string> {
@@ -33,8 +35,8 @@ export function insertJob(
   try {
     db.prepare(
       `
-      INSERT INTO jobs (id, source, external_id, url, title, company, location, description_md, raw_snapshot, match_score, match_reason, status, fetched_at)
-      VALUES (@id, @source, @external_id, @url, @title, @company, @location, @description_md, @raw_snapshot, @match_score, @match_reason, @status, @fetched_at)
+      INSERT INTO jobs (id, source, external_id, url, title, company, location, description_md, raw_snapshot, match_score, match_reason, status, fetched_at, search_query, search_location)
+      VALUES (@id, @source, @external_id, @url, @title, @company, @location, @description_md, @raw_snapshot, @match_score, @match_reason, @status, @fetched_at, @search_query, @search_location)
     `,
     ).run({ ...job, fetched_at: now });
     log.info("db", "jobs insertJob", {

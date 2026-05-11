@@ -15,7 +15,8 @@ import {
   setRunOutcome,
 } from "@/lib/runtime/run-context";
 import { LOG_DIR, BLOCKED_COMPANIES_PATH } from "@/lib/runtime/paths";
-import { createScoutAgent, SCOUT_MAX_CANDIDATES } from "./agent";
+import { createScoutAgent } from "./agent";
+import { SCOUT_MAX_CANDIDATES } from "./prompt";
 import { log } from "@/lib/utils/log";
 import type { ScoutResult } from "./types";
 
@@ -65,7 +66,7 @@ export async function runScout(): Promise<ScoutResult> {
       const { query, location } = pickNextPair(search.queries, search.locations);
 
       const searchForRun = { ...search, locations: location ? [location] : [] };
-      const { agent, ctx } = createScoutAgent(searchForRun);
+      const { agent, ctx } = createScoutAgent(searchForRun, query, location ?? null);
       resetBrowserState();
 
       const locationLabel = location ? ` in ${location}` : "";

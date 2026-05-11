@@ -18,7 +18,7 @@ import {
   Check,
   ArrowRight,
 } from "lucide-react";
-import { JsonBlock } from "./log/[runId]/JsonBlock";
+import { JsonBlock } from "@/components/log/JsonBlock";
 
 interface RunSummary {
   runId: string;

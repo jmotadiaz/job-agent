@@ -86,6 +86,8 @@ export function makeSaveJobTool(ctx: ScoutRunContext) {
         match_score: score,
         match_reason: reason,
         status: "shortlisted",
+        search_query: ctx.activeQuery,
+        search_location: ctx.activeLocation,
       });
 
       ctx.matches.push({
@@ -100,6 +102,8 @@ export function makeSaveJobTool(ctx: ScoutRunContext) {
         match_reason: saved.match_reason,
         status: "shortlisted",
         fetched_at: saved.fetched_at,
+        search_query: saved.search_query,
+        search_location: saved.search_location,
       });
 
       log.info(MODULE, "saveJob end", {

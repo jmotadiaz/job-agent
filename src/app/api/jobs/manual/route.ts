@@ -49,6 +49,8 @@ export async function POST(req: NextRequest) {
     match_score: 1.0,
     match_reason: "Manually added by user",
     status: "shortlisted",
+    search_query: null,
+    search_location: null,
   });
 
   log.info("api/jobs/manual", "end", {

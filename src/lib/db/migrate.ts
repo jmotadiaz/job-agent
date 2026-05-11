@@ -20,6 +20,8 @@ export function migrate(): void {
       match_reason TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'shortlisted' CHECK (status IN ('new', 'shortlisted', 'applied', 'discarded')),
       fetched_at INTEGER NOT NULL,
+      search_query TEXT NULL,
+      search_location TEXT NULL,
       UNIQUE(source, external_id)
     );
 
@@ -53,6 +55,21 @@ export function migrate(): void {
   if (!colNames.has("rationale_json")) {
     db.exec(`ALTER TABLE generations ADD COLUMN rationale_json TEXT NULL`);
     log.info("db", "migrate: added generations.rationale_json");
+  }
+
+  // Jobs additive columns
+  const jobColumns = db
+    .prepare("PRAGMA table_info(jobs)")
+    .all() as Array<{ name: string }>;
+  const jobColNames = new Set(jobColumns.map((c) => c.name));
+
+  if (!jobColNames.has("search_query")) {
+    db.exec(`ALTER TABLE jobs ADD COLUMN search_query TEXT NULL`);
+    log.info("db", "migrate: added jobs.search_query");
+  }
+  if (!jobColNames.has("search_location")) {
+    db.exec(`ALTER TABLE jobs ADD COLUMN search_location TEXT NULL`);
+    log.info("db", "migrate: added jobs.search_location");
   }
 
   log.info("db", "migrate end", { tables: ["jobs", "generations"] });

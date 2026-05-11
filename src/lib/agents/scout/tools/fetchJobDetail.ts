@@ -90,7 +90,7 @@ export function makeFetchJobDetailTool(ctx: ScoutRunContext) {
           return { error: "Job description not found or too short", url };
         }
 
-        const llmModel = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
+        const llmModel = "google/gemma-4-26B-A4B-it";
         const llmT0 = Date.now();
 
         const { object: extracted } = await generateObject({

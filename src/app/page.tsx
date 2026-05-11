@@ -2,7 +2,7 @@ import { listJobs } from '@/lib/db/jobs';
 import { hashProfile } from '@/lib/profile/hash';
 import { PROFILE_PATH } from '@/lib/profile/load';
 import fs from 'node:fs';
-import { Dashboard } from './Dashboard';
+import { Dashboard } from '@/components/dashboard/Dashboard';
 
 export const dynamic = 'force-dynamic';
 

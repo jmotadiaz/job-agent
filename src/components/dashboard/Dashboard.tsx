@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import type { Job } from "@/lib/db/jobs";
 import type { Generation } from "@/lib/db/generations";
-import { LogPanel } from "./LogPanel";
+import { LogPanel } from "@/components/log/LogPanel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -679,6 +679,17 @@ function JobRow({
         {/* Match score */}
         {scoreBar(job.match_score)}
 
+        {/* Search context */}
+        {(job.search_query || job.search_location) && (
+          <div className="flex items-center gap-1.5 mt-2 text-[10px] uppercase tracking-wider font-bold text-[var(--text-muted)]">
+            <Search size={10} />
+            <span>
+              Search: {job.search_query || "Unknown query"}
+              {job.search_location ? ` in ${job.search_location}` : ""}
+            </span>
+          </div>
+        )}
+
         {/* Match reason */}
         <p className="mt-2 mb-0 text-xs text-[var(--text-secondary)] line-clamp-2">
           {job.match_reason}
@@ -887,7 +898,7 @@ function AddJobButton({ onNewJob, collapsed }: { onNewJob: (job: Job) => void; c
 
 export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
-  const [tab, setTab] = useState<TabStatus>("all");
+  const [tab, setTab] = useState<TabStatus>("shortlisted");
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const toastId = useRef(0);
@@ -923,7 +934,6 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
   );
 
   const tabs: { label: string; value: TabStatus; count: number }[] = [
-    { label: "All", value: "all", count: jobs.length },
     {
       label: "Shortlisted",
       value: "shortlisted",
@@ -942,7 +952,7 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
     { label: "Logs", value: "logs", count: 0 },
   ];
 
-  const filtered = tab === "all" ? jobs : jobs.filter((j) => j.status === tab);
+  const filtered = jobs.filter((j) => j.status === tab);
 
   return (
     <div className="min-h-screen">
@@ -1013,9 +1023,7 @@ export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
           <div className="text-center px-6 py-16 text-[var(--text-muted)]">
             <div className="text-[40px] mb-4">🔍</div>
             <p className="text-[15px] m-0">
-              {tab === "all"
-                ? 'No jobs yet. Click "Find new job" to start scouting.'
-                : `No ${tab} jobs.`}
+              {`No ${tab} jobs.`}
             </p>
           </div>
         ) : (

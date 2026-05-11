@@ -46,6 +46,8 @@ const ScoutPublicJobSchema = z.object({
   match_reason: z.string(),
   status: z.literal('shortlisted'),
   fetched_at: z.number(),
+  search_query: z.string().nullable(),
+  search_location: z.string().nullable(),
 });
 
 export const ScoutResultSchema = z.discriminatedUnion('kind', [
@@ -81,6 +83,10 @@ export interface ScoutRunContext {
   reviewedJobs: Map<string, JobSummary>;
   /** Raw description text for each fetched job, keyed by external_id */
   rawTextByExternalId: Map<string, string>;
+  /** The specific query used for this run */
+  activeQuery: string;
+  /** The specific location used for this run */
+  activeLocation: string | null;
   /** Shared browser session name for the whole scout run */
   browserSession: string | null;
 }
