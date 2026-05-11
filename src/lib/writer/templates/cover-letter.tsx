@@ -28,7 +28,6 @@ Font.register({
 
 const MUTED = "#555555";
 const PRIMARY = "#000000";
-const SECONDARY = "#333333";
 const DIVIDER = "#cccbc8";
 
 const styles = StyleSheet.create({
@@ -136,7 +135,6 @@ export function CoverLetterTemplate({
   senderPhone,
   senderLinkedin,
   companyName,
-  jobTitle,
   paragraphs,
   date,
 }: CoverLetterTemplateProps) {

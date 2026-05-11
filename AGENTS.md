@@ -18,13 +18,13 @@ npm test          # Run all Vitest tests
 `profile.md` is **not the CV**. It is a deliberately oversized dossier of the user's career — every role, achievement, metric, and stack detail. Both agents treat it as raw material:
 
 - **Scout** receives the full markdown to evaluate fit (hard blockers, seniority, stack, location).
-- **Writer** parses it at runtime into a bullet catalog with stable `b0`, `b1`, … IDs; the `selectBullets` tool picks and rewrites the bullets that best match the saved offer.
+- **Writer** uses the full profile as context to select and rewrite the most relevant material for each offer.
 
 The richer `profile.md` is, the better the Writer can tailor outputs. **Maintenance guideline**: err on the side of more detail (quantified impact, technologies, scope). The Writer can shorten, but cannot invent missing material.
 
-Format matters because the Writer parses with regex: bullets must use `- text` or `* text`; experience headers must be `### Company | Role | Period`. Frontmatter search config is parsed via `gray-matter`.
+`profile.md` uses YAML frontmatter (parsed via `gray-matter`) to hold search configuration (filters, preferences, blocklist). The body is free-form markdown; bullets use `- text` or `* text`.
 
-Requires a `DEEPINFRA_API_KEY` in `.env` (or `.env.local`). The Scout uses `deepseek-ai/DeepSeek-V4-Flash`; the Writer uses `zai-org/GLM-5.1`, both via `@ai-sdk/deepinfra`.
+Requires a `DEEPINFRA_API_KEY` in `.env` (or `.env.local`). Both agents run via `@ai-sdk/deepinfra`.
 
 ## Task completion checklist
 
