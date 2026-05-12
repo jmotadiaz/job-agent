@@ -22,9 +22,16 @@ npm test          # Run all Vitest tests
 
 The richer `profile.md` is, the better the Writer can tailor outputs. **Maintenance guideline**: err on the side of more detail (quantified impact, technologies, scope). The Writer can shorten, but cannot invent missing material.
 
-`profile.md` uses YAML frontmatter (parsed via `gray-matter`) to hold search configuration (filters, preferences, blocklist). The body is free-form markdown; bullets use `- text` or `* text`.
+`profile.md` uses YAML frontmatter (parsed via `gray-matter`) to hold search configuration (filters, preferences, blocklist). The body is free-form markdown.
 
-Requires a `DEEPINFRA_API_KEY` in `.env` (or `.env.local`). Both agents run via `@ai-sdk/deepinfra`.
+## Project structure
+
+This project uses a progressive disclosure strategy for agent instructions. Place new files in the correct directory so the relevant `AGENTS.md` is automatically applied:
+
+- **`src/app/`**: Next.js App Router pages, api routes, layouts and styles.
+- **`src/components/`**: Reusable React UI components and React hooks.
+- **`src/lib/`**: Core backend business logic.
+
 
 ## Task completion checklist
 
