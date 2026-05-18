@@ -21,6 +21,7 @@ describe("writingCoverEvaluator", () => {
 
     const input = {
       company: "Qualifyze",
+      profileContent: "Senior engineer at past company.",
     };
 
     const solution = {
@@ -31,10 +32,10 @@ describe("writingCoverEvaluator", () => {
 
     expect(mockGenerateObject).toHaveBeenCalledWith(
       expect.objectContaining({
-        system: expect.stringContaining("Every mention of the HIRING company must be exactly Qualifyze"),
+        system: expect.stringContaining("cover letter targeting Qualifyze"),
       })
     );
-    
+
     expect(mockGenerateObject).toHaveBeenCalledWith(
       expect.objectContaining({
         system: expect.not.stringContaining("<target_company>"),
@@ -53,6 +54,7 @@ describe("writingCoverEvaluator", () => {
 
     const input = {
       company: "Any Company",
+      profileContent: "Profile body.",
     };
 
     const solution = {

@@ -17,7 +17,10 @@ const WritingVerdictSchema = z.object({
   issues: z.array(z.string()),
 });
 
-function makeWritingEvaluator<TIn extends { company: string }, TSolution extends CvSolution | CoverSolution>(
+function makeWritingEvaluator<
+  TIn extends { company: string; profileContent: string },
+  TSolution extends CvSolution | CoverSolution,
+>(
   prompt: string,
   artifactName: string,
   extractText: (solution: TSolution) => string,
@@ -32,16 +35,21 @@ function makeWritingEvaluator<TIn extends { company: string }, TSolution extends
     // Resolve placeholders in system prompt
     const systemPrompt = prompt.replaceAll("<target_company>", input.company);
 
+    const userPrompt =
+      `<candidate_profile>\n${input.profileContent}\n</candidate_profile>\n\n` +
+      `<text_to_evaluate>\n${textBundle}\n</text_to_evaluate>`;
+
     log.info(MODULE, `${artifactName} writing evaluation begin`, {
       model,
       textLength: textBundle.length,
+      profileLength: input.profileContent.length,
     });
 
     const { object } = await generateObject({
       model: deepinfra(model),
       schema: WritingVerdictSchema,
       system: systemPrompt,
-      prompt: textBundle,
+      prompt: userPrompt,
     });
 
     log.info(MODULE, `${artifactName} writing evaluation end`, {

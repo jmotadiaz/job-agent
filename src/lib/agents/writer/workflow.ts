@@ -21,7 +21,7 @@ export const cvWorker = evaluatorOptimizer<
 >(
   cvGenerator,
   cvEvaluator,
-  { maxIterations: 8 },
+  { maxIterations: 4 },
 );
 
 const coverEvaluator = makeParallelEvaluator<CoverGeneratorInput, CoverSolution>(
@@ -36,7 +36,7 @@ export const coverWorker = evaluatorOptimizer<
 >(
   coverGenerator,
   coverEvaluator,
-  { maxIterations: 8 },
+  { maxIterations: 4 },
 );
 
 export const writerWorkflow = distribute(
