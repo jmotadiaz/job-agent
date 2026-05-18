@@ -202,7 +202,7 @@ function FeedbackForm({
   const [expanded, setExpanded] = useState(false);
 
   const handleSubmit = useCallback(async () => {
-    if (!rating) return;
+    if (!comment.trim()) return;
     setLoading(true);
     try {
       const res = await fetch("/api/writer/generate", {
@@ -211,8 +211,8 @@ function FeedbackForm({
         body: JSON.stringify({
           jobId,
           parentGenerationId: generationId,
-          feedbackRating: rating,
-          feedbackComment: comment || null,
+          feedbackRating: rating || null,
+          feedbackComment: comment,
         }),
       });
       const data = await res.json();
@@ -247,14 +247,14 @@ function FeedbackForm({
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <StarRating value={rating} onChange={setRating} />
-        {!rating && (
+        {rating === 0 && (
           <span className="text-[11px] text-[var(--text-muted)] italic">
-            Pick a rating to enable Iterate
+            Rating is optional
           </span>
         )}
       </div>
       <textarea
-        placeholder="Optional comment — what should change?"
+        placeholder="What should change? (required)"
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         rows={2}
@@ -264,9 +264,9 @@ function FeedbackForm({
       <div className="flex gap-3 mt-3">
         <button
           className="btn btn-primary btn-sm"
-          disabled={!rating || loading}
+          disabled={!comment.trim() || loading}
           onClick={handleSubmit}
-          title={!rating ? "Pick a rating first" : undefined}
+          title={!comment.trim() ? "Write feedback first" : undefined}
         >
           {loading ? (
             <>

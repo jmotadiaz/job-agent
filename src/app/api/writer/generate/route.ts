@@ -14,12 +14,12 @@ const BodySchema = z
   })
   .refine(
     (d) => {
-      if (d.parentGenerationId) return d.feedbackRating != null;
+      if (d.parentGenerationId) return d.feedbackComment != null;
       return true;
     },
     {
-      message: "feedbackRating is required when parentGenerationId is provided",
-      path: ["feedbackRating"],
+      message: "feedbackComment is required when parentGenerationId is provided",
+      path: ["feedbackComment"],
     },
   )
   .refine(
