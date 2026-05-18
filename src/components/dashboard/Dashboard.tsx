@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useQueryState } from "nuqs";
 import { Streamdown } from "streamdown";
 import "streamdown/styles.css";
 import {
@@ -898,7 +899,9 @@ function AddJobButton({ onNewJob, collapsed }: { onNewJob: (job: Job) => void; c
 
 export function Dashboard({ initialJobs, currentProfileHash }: DashboardProps) {
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
-  const [tab, setTab] = useState<TabStatus>("shortlisted");
+  const [tabState, setTabState] = useQueryState("tab", { defaultValue: "shortlisted" });
+  const tab = tabState as TabStatus;
+  const setTab = (t: TabStatus) => setTabState(t);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const toastId = useRef(0);

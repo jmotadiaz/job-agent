@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { log } from "@/lib/utils/log";
-import type { WriterRunContext } from "../types";
+import type { WriterRunContext } from "../writer/types";
 
 const MODULE = "writer/tool";
 

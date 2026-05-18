@@ -3,7 +3,7 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import { insertJob } from "@/lib/db/jobs";
 import { log } from "@/lib/utils/log";
-import type { JobDetails, ScoutRunContext } from "../types";
+import type { JobDetails, ScoutRunContext } from "../scout/types";
 
 const MODULE = "scout/tool";
 

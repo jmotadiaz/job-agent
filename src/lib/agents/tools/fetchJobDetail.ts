@@ -12,8 +12,8 @@ import {
 import { log } from "@/lib/utils/log";
 import { dump } from "@/lib/utils/dump";
 import { fillPrompt } from "@/lib/utils/prompt";
-import { JobDetailsSchema } from "../types";
-import type { JobSummary, ScoutRunContext } from "../types";
+import { JobDetailsSchema } from "../scout/types";
+import type { JobSummary, ScoutRunContext } from "../scout/types";
 
 const SYSTEM_PROMPT = `You are a job description parser. Extract structured data from job postings and return it as a JSON object.
 

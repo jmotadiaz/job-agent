@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { log } from "@/lib/utils/log";
-import type { ScoutRunContext } from "../types";
+import type { ScoutRunContext } from "../scout/types";
 
 const MODULE = "scout/tool";
 

@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     paddingTop: 45,
     paddingLeft: 30,
     paddingRight: 18,
-    paddingBottom: 30,
+    paddingBottom: 60,
     borderRight: "0.5pt solid " + DIVIDER,
   },
   rightCol: {
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     paddingTop: 45,
     paddingLeft: 28,
     paddingRight: 30,
-    paddingBottom: 30,
+    paddingBottom: 60,
   },
   name: {
     fontSize: 22,

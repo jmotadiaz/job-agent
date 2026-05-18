@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { log } from "@/lib/utils/log";
-import type { WriterRunContext } from "../types";
+import type { WriterRunContext } from "../writer/types";
 
 const MODULE = "writer/tool";
 
@@ -22,25 +22,14 @@ export function makeFinalizeGenerationTool(ctx: WriterRunContext) {
     }),
     execute: async ({ rationale }) => {
       log.info(MODULE, "finalizeGeneration begin");
-      if (!ctx.experience) {
-        log.warn(MODULE, "finalizeGeneration: missing experience");
-        return { error: "You must call composeCV before finalizing." };
-      }
-      if (!ctx.skillCategories || ctx.skillCategories.length === 0) {
-        log.warn(MODULE, "finalizeGeneration: missing skillCategories");
-        return {
-          error:
-            "You must call composeCV before finalizing (skill_categories missing).",
-        };
-      }
-      if (!ctx.education) {
-        log.warn(MODULE, "finalizeGeneration: missing education");
-        return { error: "You must call composeCV before finalizing (education missing)." };
-      }
-      if (!ctx.coverParagraphs) {
-        log.warn(MODULE, "finalizeGeneration: missing coverParagraphs");
-        return {
-          error: "You must call composeCoverLetter before finalizing.",
+      
+      const hasCv = !!ctx.experience && !!ctx.skillCategories && ctx.skillCategories.length > 0 && !!ctx.education;
+      const hasCover = !!ctx.coverParagraphs && ctx.coverParagraphs.length > 0;
+
+      if (!hasCv && !hasCover) {
+        log.warn(MODULE, "finalizeGeneration: missing both CV and Cover Letter content");
+        return { 
+          error: "You must call either composeCV or composeCoverLetter before finalizing." 
         };
       }
       
@@ -48,13 +37,11 @@ export function makeFinalizeGenerationTool(ctx: WriterRunContext) {
       ctx.finalized = true;
       
       log.info(MODULE, "finalizeGeneration end", {
-        experienceCount: ctx.experience.length,
-        skillCategoryCount: ctx.skillCategories.length,
-        skillCount: ctx.skillCategories.reduce(
-          (acc, c) => acc + c.items.length,
-          0,
-        ),
-        paragraphCount: ctx.coverParagraphs.length,
+        hasCv,
+        hasCover,
+        experienceCount: ctx.experience?.length ?? 0,
+        skillCategoryCount: ctx.skillCategories?.length ?? 0,
+        paragraphCount: ctx.coverParagraphs?.length ?? 0,
         rationaleTextLen: ctx.rationale.text.length,
       });
       return { ok: true };

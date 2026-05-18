@@ -43,6 +43,8 @@ import type { ScoutRunContext } from '../tools';
 function makeCtx(): ScoutRunContext {
   return {
     search: { queries: ['software engineer'], locations: ['Madrid'], remote: true },
+    activeQuery: 'software engineer',
+    activeLocation: 'Madrid',
     candidateCount: 0,
     noMatchCalled: false,
     matches: [],
@@ -51,6 +53,7 @@ function makeCtx(): ScoutRunContext {
     browserSession: null,
   };
 }
+
 
 describe('listVisibleJobs filtering', () => {
   beforeEach(() => {

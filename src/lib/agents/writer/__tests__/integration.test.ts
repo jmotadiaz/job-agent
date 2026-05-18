@@ -2,10 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-// ──────────────────────────────────────────────────────────────
-// Mocks
-// ──────────────────────────────────────────────────────────────
-
 vi.mock('@/lib/profile/load', () => ({
   loadProfile: vi.fn(() => `# Profile`),
 }));
@@ -40,14 +36,76 @@ vi.mock('@/lib/db/jobs', () => ({
   })),
 }));
 
+interface StoredGeneration {
+  id: string;
+  job_id: string;
+  created_at: number;
+}
+
 vi.mock('@/lib/db/generations', () => ({
-  insertGeneration: vi.fn((g: any) => ({ ...g, id: 'gen1', created_at: Date.now() })),
+  insertGeneration: vi.fn((g: StoredGeneration) => ({ ...g, created_at: Date.now() })),
   getGenerationById: vi.fn(),
   getLatestGenerationByJobId: vi.fn(() => null),
 }));
 
+vi.mock('ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('ai')>();
+  return {
+    ...actual,
+    generateText: vi.fn(),
+    generateObject: vi.fn().mockResolvedValue({
+      object: {
+        cv: {
+          bullets: [],
+          skillCategories: [],
+          education: [],
+          layoutBudget: { maxBullets: 10, maxSkillCategories: 3, maxTotalSkills: 10, maxCoverParagraphs: 3 }
+        },
+        cover: {
+          outline: { hook: 'hook', evidence: [], close: 'close' },
+          toneGuidelines: 'tone'
+        },
+        rationaleDraft: 'rationale'
+      }
+    }),
+    tool: actual.tool,
+  };
+});
+
+vi.mock('../generate/cv', () => ({
+  cvGenerator: {
+    execute: vi.fn().mockResolvedValue({
+      experience: [],
+      skillCategories: [],
+      education: [],
+      pdfPath: 'cv.pdf',
+      imageBase64: 'base64'
+    })
+  }
+}));
+
+vi.mock('../generate/cover', () => ({
+  coverGenerator: {
+    execute: vi.fn().mockResolvedValue({
+      paragraphs: [],
+      pdfPath: 'cover.pdf',
+      imageBase64: 'base64'
+    })
+  }
+}));
+
+vi.mock('../evaluate/visual', () => ({
+  visualCvEvaluator: { execute: vi.fn().mockResolvedValue({ accepted: true, issues: [] }) },
+  visualCoverEvaluator: { execute: vi.fn().mockResolvedValue({ accepted: true, issues: [] }) },
+}));
+
+vi.mock('../evaluate/writing', () => ({
+  writingCvEvaluator: { execute: vi.fn().mockResolvedValue({ accepted: true, issues: [] }) },
+  writingCoverEvaluator: { execute: vi.fn().mockResolvedValue({ accepted: true, issues: [] }) },
+}));
+
 vi.mock('@react-pdf/renderer', async (importOriginal) => {
-  const actual = await importOriginal<any>();
+  const actual = await importOriginal<typeof import('@react-pdf/renderer')>();
   return {
     ...actual,
     renderToFile: vi.fn().mockResolvedValue(undefined),
@@ -67,51 +125,30 @@ vi.mock('node:fs', () => ({
   existsSync: vi.fn().mockReturnValue(true),
 }));
 
-// Mock the agent factory
-vi.mock('../agent', () => ({
-  createWriterAgent: vi.fn(),
-}));
-
-// ──────────────────────────────────────────────────────────────
-// Import after mocks
-// ──────────────────────────────────────────────────────────────
-
-import { createWriterAgent } from '../agent';
 import { insertGeneration } from '@/lib/db/generations';
 import { runWriter } from '../orchestrator';
+import { cvGenerator } from '../generate/cv';
 
 describe('Writer integration (Orchestrator Test)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('generates files when agent finalizes', async () => {
-    vi.mocked(createWriterAgent).mockImplementation((ctx: any) => {
-      ctx.experience = [{ company: 'C1', role: 'R1', period: 'P1', bullets: ['B1'] }];
-      ctx.skillCategories = [{ label: 'Core', items: ['React', 'TypeScript'] }];
-      ctx.education = [{ institution: 'U1', degree: 'D1', period: '2020' }];
-      ctx.coverParagraphs = ['P1', 'P2'];
-      ctx.rationale = { priorityRequirements: ['R1'], text: 'Rationale text' };
-      ctx.finalized = true;
-      return {
-        generate: vi.fn().mockResolvedValue({}),
-      } as any;
-    });
-
+  it('generates files when distributed workflow succeeds', async () => {
     const result = await runWriter({ jobId: 'job1' });
 
     expect(result.kind).toBe('success');
     expect(insertGeneration).toHaveBeenCalled();
   });
 
-  it('handles agent errors gracefully', async () => {
-    vi.mocked(createWriterAgent).mockReturnValue({
-      generate: vi.fn().mockRejectedValue(new Error('Agent Failed')),
-    } as any);
+  it('handles generator errors gracefully', async () => {
+    vi.mocked(cvGenerator.execute).mockRejectedValue(new Error('Agent Failed'));
 
     const result = await runWriter({ jobId: 'job1' });
 
     expect(result.kind).toBe('error');
-    expect((result as any).message).toContain('Agent Failed');
+    if (result.kind === 'error') {
+      expect(result.message).toContain('Agent Failed');
+    }
   });
 });

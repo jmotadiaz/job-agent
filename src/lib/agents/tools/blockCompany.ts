@@ -3,7 +3,7 @@ import { z } from "zod";
 import * as fs from "node:fs";
 import { log } from "@/lib/utils/log";
 import { BLOCKED_COMPANIES_PATH } from "@/lib/runtime/paths";
-import type { ScoutRunContext } from "../types";
+import type { ScoutRunContext } from "../scout/types";
 
 const MODULE = "scout/tool";
 

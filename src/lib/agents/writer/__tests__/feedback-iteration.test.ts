@@ -5,10 +5,6 @@ vi.mock("server-only", () => ({}));
 import fs from "node:fs";
 import path from "node:path";
 
-// ──────────────────────────────────────────────────────────────
-// Fixtures
-// ──────────────────────────────────────────────────────────────
-
 const FIXTURE_PROFILE = `# Jane Doe
 name: Jane Doe
 email: jane@example.com
@@ -37,10 +33,6 @@ const FIXTURE_JOB = {
   fetched_at: Date.now(),
 };
 
-// ──────────────────────────────────────────────────────────────
-// Generation store (in-memory simulation)
-// ──────────────────────────────────────────────────────────────
-
 interface StoredGeneration {
   id: string;
   job_id: string;
@@ -58,10 +50,6 @@ interface StoredGeneration {
 }
 
 const generationStore = new Map<string, StoredGeneration>();
-
-// ──────────────────────────────────────────────────────────────
-// Mocks
-// ──────────────────────────────────────────────────────────────
 
 vi.mock("@/lib/profile/load", () => ({
   loadProfile: vi.fn(() => FIXTURE_PROFILE),
@@ -82,7 +70,7 @@ vi.mock("@/lib/profile/parse", () => ({
       phone: "123456789",
       location: "Remote",
       linkedinUrl: "https://linkedin.com/in/jane",
-      website: null
+      website: null,
     },
     anchors: { bullets: [], skills: [] },
     skillCategories: [],
@@ -95,8 +83,8 @@ vi.mock("@/lib/db/jobs", () => ({
 }));
 
 vi.mock("@/lib/db/generations", () => ({
-  insertGeneration: vi.fn((g: StoredGeneration) => {
-    const row = { ...g, created_at: Date.now() };
+  insertGeneration: vi.fn((g: Omit<StoredGeneration, "created_at">) => {
+    const row: StoredGeneration = { ...g, created_at: Date.now() };
     generationStore.set(g.id, row);
     return row;
   }),
@@ -132,94 +120,87 @@ vi.mock("ai", async (importOriginal) => {
   return {
     ...actual,
     generateText: vi.fn(),
-    ToolLoopAgent: class FakeAgent {
-      static _fakeRun:
-        | ((tools: Record<string, { execute: Function }>) => Promise<void>)
-        | undefined;
-      private opts: { tools: Record<string, { execute: Function }> };
-      constructor(opts: typeof this.opts) {
-        this.opts = opts;
-      }
-      async generate(_input: { prompt: string }) {
-        await FakeAgent._fakeRun?.(this.opts.tools);
-      }
-    },
-    isLoopFinished: () => () => false,
+    generateObject: vi.fn().mockResolvedValue({
+      object: {
+        cv: {
+          bullets: [],
+          skillCategories: [],
+          education: [],
+          layoutBudget: {
+            maxBullets: 10,
+            maxSkillCategories: 3,
+            maxTotalSkills: 10,
+            maxCoverParagraphs: 3,
+          },
+        },
+        cover: {
+          outline: { hook: "hook", evidence: [], close: "close" },
+          toneGuidelines: "tone",
+        },
+        rationaleDraft: "rationale",
+      },
+    }),
     tool: actual.tool,
   };
 });
 
-// ──────────────────────────────────────────────────────────────
-// Imports
-// ──────────────────────────────────────────────────────────────
+vi.mock("../generate/cv", () => ({
+  cvGenerator: {
+    execute: vi.fn().mockResolvedValue({
+      experience: [
+        {
+          company: "CoolCo",
+          role: "Frontend Engineer",
+          period: "2020-2024",
+          bullets: ["Built React apps"],
+        },
+      ],
+      skillCategories: [{ label: "Core", items: ["React", "TypeScript"] }],
+      education: [{ institution: "U1", degree: "D1", period: "2020" }],
+      pdfPath: "cv.pdf",
+      imageBase64: "base64",
+    }),
+  },
+}));
 
-import { ToolLoopAgent } from "ai";
+vi.mock("../generate/cover", () => ({
+  coverGenerator: {
+    execute: vi.fn().mockResolvedValue({
+      paragraphs: ["Dear CoolCo,", "I am excited..."],
+      pdfPath: "cover.pdf",
+      imageBase64: "base64",
+    }),
+  },
+}));
+
+vi.mock("../evaluate/visual", () => ({
+  visualCvEvaluator: {
+    execute: vi.fn().mockResolvedValue({ accepted: true, issues: [] }),
+  },
+  visualCoverEvaluator: {
+    execute: vi.fn().mockResolvedValue({ accepted: true, issues: [] }),
+  },
+}));
+
+vi.mock("../evaluate/writing", () => ({
+  writingCvEvaluator: {
+    execute: vi.fn().mockResolvedValue({ accepted: true, issues: [] }),
+  },
+  writingCoverEvaluator: {
+    execute: vi.fn().mockResolvedValue({ accepted: true, issues: [] }),
+  },
+}));
+
 import { listGenerationsForJob } from "@/lib/db/generations";
 import { runWriter } from "../orchestrator";
-
-type FakeClass = typeof ToolLoopAgent & {
-  _fakeRun?: (tools: Record<string, { execute: Function }>) => Promise<void>;
-};
-
-function setFakeRun(
-  fn: (tools: Record<string, { execute: Function }>) => Promise<void>,
-) {
-  (ToolLoopAgent as FakeClass)._fakeRun = fn;
-}
-
-function makeAgentRun(
-  experience: Array<{ company: string; role: string; period: string; bullets: string[] }>,
-) {
-  return async (tools: Record<string, { execute: Function }>) => {
-    await tools.composeCV.execute(
-      {
-        experience,
-        skill_categories: [
-          { label: "Core", items: ["React", "TypeScript"] },
-        ],
-        education: [{ institution: "U1", degree: "D1", period: "2020" }]
-      },
-      {} as never
-    );
-    await tools.composeCoverLetter.execute(
-      {
-        paragraphs: [
-          "Dear CoolCo team, I am excited to apply.",
-          "My React experience fits this role.",
-        ],
-      },
-      {} as never,
-    );
-    await tools.finalizeGeneration.execute(
-      {
-        rationale: {
-          priorityRequirements: ["React", "TypeScript", "Frontend a escala"],
-          text: "Se priorizan bullets de React por matching directo con la oferta."
-        },
-      },
-      {} as never,
-    );
-  };
-}
-
-// ──────────────────────────────────────────────────────────────
-// Tests
-// ──────────────────────────────────────────────────────────────
 
 describe("Writer feedback & iteration integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     generationStore.clear();
-    (ToolLoopAgent as FakeClass)._fakeRun = undefined;
   });
 
   it("(a) generates first version with no parent", async () => {
-    setFakeRun(
-      makeAgentRun([
-        { company: "CoolCo", role: "Frontend Engineer", period: "2020-2024", bullets: ["Built React apps for 2M+ users"] },
-      ]),
-    );
-
     const result = await runWriter({ jobId: "job-feedback-1" });
     if (result.kind !== "success") throw new Error("Generation failed");
     expect(result.generationId).toBeDefined();
@@ -230,11 +211,7 @@ describe("Writer feedback & iteration integration", () => {
 
     const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
     fs.rmSync(
-      path.join(
-        GENERATED_PDFS_DIR,
-        "job-feedback-1",
-        result.generationId,
-      ),
+      path.join(GENERATED_PDFS_DIR, "job-feedback-1", result.generationId),
       { recursive: true, force: true },
     );
   });
@@ -242,22 +219,10 @@ describe("Writer feedback & iteration integration", () => {
   it("(b) feedback + iteration produces child row with correct metadata", async () => {
     const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
 
-    // Generate parent
-    setFakeRun(
-      makeAgentRun([
-        { company: "CoolCo", role: "Frontend Engineer", period: "2020-2024", bullets: ["Built React apps for 2M+ users"] },
-      ]),
-    );
     const parentResult = await runWriter({ jobId: "job-feedback-1" });
     if (parentResult.kind !== "success") throw new Error("Parent failed");
     const parentId = parentResult.generationId;
 
-    // Generate child with feedback
-    setFakeRun(
-      makeAgentRun([
-        { company: "CoolCo", role: "Frontend Engineer", period: "2020-2024", bullets: ["Led design system adoption — improved dev velocity"] },
-      ]),
-    );
     const childResult = await runWriter({
       jobId: "job-feedback-1",
       parentGenerationId: parentId,
@@ -273,36 +238,23 @@ describe("Writer feedback & iteration integration", () => {
     expect(childRow?.feedback_rating).toBe(2);
     expect(childRow?.feedback_comment).toBe("Emphasis on design system work");
 
-    // Cleanup
-    fs.rmSync(
-      path.join(GENERATED_PDFS_DIR, "job-feedback-1", parentId),
-      { recursive: true, force: true },
-    );
-    fs.rmSync(
-      path.join(GENERATED_PDFS_DIR, "job-feedback-1", childId),
-      { recursive: true, force: true },
-    );
+    fs.rmSync(path.join(GENERATED_PDFS_DIR, "job-feedback-1", parentId), {
+      recursive: true,
+      force: true,
+    });
+    fs.rmSync(path.join(GENERATED_PDFS_DIR, "job-feedback-1", childId), {
+      recursive: true,
+      force: true,
+    });
   });
 
   it("(c) two iterations from same parent are siblings", async () => {
     const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
 
-    // Generate parent
-    setFakeRun(
-      makeAgentRun([
-        { company: "C1", role: "R1", period: "P1", bullets: ["Built React apps for millions of users"] },
-      ]),
-    );
     const parentResult = await runWriter({ jobId: "job-feedback-1" });
     if (parentResult.kind !== "success") throw new Error("Parent failed");
     const parentId = parentResult.generationId;
 
-    // First child
-    setFakeRun(
-      makeAgentRun([
-        { company: "C1", role: "R1", period: "P1", bullets: ["Built scalable React apps"] },
-      ]),
-    );
     const child1 = await runWriter({
       jobId: "job-feedback-1",
       parentGenerationId: parentId,
@@ -310,12 +262,6 @@ describe("Writer feedback & iteration integration", () => {
       feedbackComment: "Too vague",
     });
 
-    // Second child (from same parent)
-    setFakeRun(
-      makeAgentRun([
-        { company: "C1", role: "R1", period: "P1", bullets: ["Led design system for 3 teams"] },
-      ]),
-    );
     const child2 = await runWriter({
       jobId: "job-feedback-1",
       parentGenerationId: parentId,
@@ -327,57 +273,35 @@ describe("Writer feedback & iteration integration", () => {
     const child1Row = generationStore.get(child1.generationId);
     const child2Row = generationStore.get(child2.generationId);
 
-    // Both children point to same parent
     expect(child1Row?.parent_generation_id).toBe(parentId);
     expect(child2Row?.parent_generation_id).toBe(parentId);
 
-    // They are different rows with different feedback
-    expect((child1 as any).generationId).not.toBe((child2 as any).generationId);
+    expect(child1.generationId).not.toBe(child2.generationId);
     expect(child1Row?.feedback_rating).toBe(2);
     expect(child2Row?.feedback_rating).toBe(4);
 
-    // Total: 3 generations (parent + 2 children)
     const all = listGenerationsForJob("job-feedback-1");
     expect(all.length).toBe(3);
 
-    // Cleanup
-    for (const id of [
-      parentId,
-      (child1 as any).generationId,
-      (child2 as any).generationId,
-    ]) {
-      fs.rmSync(
-        path.join(GENERATED_PDFS_DIR, "job-feedback-1", id),
-        { recursive: true, force: true },
-      );
+    for (const id of [parentId, child1.generationId, child2.generationId]) {
+      fs.rmSync(path.join(GENERATED_PDFS_DIR, "job-feedback-1", id), {
+        recursive: true,
+        force: true,
+      });
     }
   });
 
   it("(d) no endpoint allows editing feedback of an existing generation", async () => {
     const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
 
-    setFakeRun(
-      makeAgentRun([{ company: "C1", role: "R1", period: "P1", bullets: ["Built React apps"] }]),
-    );
     const result = await runWriter({ jobId: "job-feedback-1" });
     if (result.kind !== "success") throw new Error("Generation failed");
     const generationId = result.generationId;
 
-    // Attempting to call insertGeneration again with same id must throw (PK violation)
-    // Since we're using a Map-based mock, we simulate: the store already has the key
     expect(generationStore.has(generationId)).toBe(true);
 
-    // The API layer has no PATCH route for feedback — confirmed by checking route files
-    // (no route.ts exists at /api/generations/[id] that handles PATCH).
-    // This is an architectural guarantee, not a runtime check.
-    expect(true).toBe(true); // design check passes
-
     fs.rmSync(
-      path.join(
-        GENERATED_PDFS_DIR,
-        "job-feedback-1",
-        generationId,
-      ),
+      path.join(GENERATED_PDFS_DIR, "job-feedback-1", generationId),
       { recursive: true, force: true },
     );
   });

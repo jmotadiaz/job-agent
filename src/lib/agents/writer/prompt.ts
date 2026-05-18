@@ -23,14 +23,13 @@ Keep PHASE 1 reasoning under ~250 tokens of plain text. Long reasoning phases tr
 </hard_constraints>
 
 <two_phase_execution>
-PHASE 1 — THINK (plain text, no tool calls). Cover four points, briefly:
-  1. List 3-5 priority requirements from <job_offer>: "[1] ... [2] ... [3] ..." (each ≤10 words).
-  2. For each profile experience entry: which bullets to keep, which to drop, planned rewrites — apply <recency_budget>.
-  3. Skill picks per category from <skill_categories> (2-5 items each, 2-4 categories total).
-  4. Cover-letter outline: hook → evidence (each paragraph anchored to one priority requirement, citing 5-10 words from the offer) → close.
+PHASE 1 — THINK (plain text, no tool calls). Cover the points relevant to your task scope, briefly:
+  - Priority requirements from <job_offer>: list 3-5 as "[1] ... [2] ... [3] ..." (each ≤10 words).
+  - For each profile experience entry: which bullets to keep/drop/rewrite — apply <recency_budget>.
+  - Skill picks per category from <skill_categories> (2-5 items each, 2-4 categories total).
+  - Cover-letter outline (only if cover letter is in scope): hook → evidence (each paragraph anchored to one priority requirement, citing 5-10 words from the offer) → close.
 
-PHASE 2 — ACT. Call exactly: composeCV → composeCoverLetter → finalizeGeneration.
-Out-of-order calls fail the dependency check; if you call composeCoverLetter before composeCV, the loop will reject it.
+PHASE 2 — ACT. Call the tools listed in your <task_scope> in the order specified there. Do NOT attempt to call tools that are not in your toolset.
 </two_phase_execution>
 
 <recency_budget>
@@ -106,21 +105,3 @@ Do NOT describe what you did in abstract terms ("usé un verbo más fuerte"). Th
 
 **Feedback sugerido:** 2-3 specific, answerable questions that would most improve the next iteration (e.g. "¿Cuántas personas liderabas en X?", "¿Quieres recuperar experiencia en Y aunque sea con un solo bullet?").
 </rationale_rule>`;
-
-export const ITERATION_INSTRUCTIONS = `
-
-<iteration_mode>
-You receive the previous generation (selected bullets, skills, cover paragraphs) plus user feedback.
-
-## PHASE 1 — THINK (no tool calls)
-1. Map each feedback point to the affected artifact: CV bullets, skills list, or cover letter.
-2. Decide exactly what to change. Keep what was working.
-3. If feedback is vague (e.g. "make it stronger"), apply bullet_rules and cover_letter_structure as standard.
-
-## PHASE 2 — ACT (tool calls in strict order)
-Step A → \`composeCV\` (even if only the cover letter changed — always resubmit everything)
-Step B → \`composeCoverLetter\`
-Step C → \`finalizeGeneration\` with updated rationale in Spanish
-
-Dependency rule and hard constraints from the base instructions remain absolute.
-</iteration_mode>`;

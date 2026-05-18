@@ -4,8 +4,8 @@ import { snapshot, scrollDown, waitMs, waitLoad } from "@/lib/agent-browser/exec
 import { getSeenExternalIds } from "@/lib/db/jobs";
 import { log } from "@/lib/utils/log";
 import { dump } from "@/lib/utils/dump";
-import type { ScoutRunContext } from "../types";
-import type { JobCard } from "../types";
+import type { ScoutRunContext } from "../scout/types";
+import type { JobCard } from "../scout/types";
 
 const MODULE = "scout/tool";
 

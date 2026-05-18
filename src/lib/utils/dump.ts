@@ -29,3 +29,30 @@ export function dump(label: string, content: unknown): string {
   log.info("fs", "dump written", { file: filename });
   return filename;
 }
+
+/**
+ * Dumps a binary buffer to a file in the active run's artifacts directory.
+ * Use for non-JSON artifacts (PNG snapshots, etc.).
+ */
+export function dumpBinary(
+  label: string,
+  buffer: Buffer,
+  extension: string,
+): string {
+  const ctx = getCurrentRunContext();
+  if (!ctx) {
+    throw new Error(
+      "dumpBinary() requires an active run context — wrap in runWithContext()",
+    );
+  }
+
+  const nn = nextSequenceNumber();
+  const nnStr = String(nn).padStart(2, "0");
+  const filename = `${nnStr}_${label}.${extension}`;
+  const filePath = path.join(ctx.runDir, "artifacts", filename);
+
+  fs.writeFileSync(filePath, buffer);
+
+  log.info("fs", "dump written", { file: filename });
+  return filename;
+}

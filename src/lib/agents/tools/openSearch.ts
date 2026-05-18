@@ -6,7 +6,7 @@ import {
   dismissBlockingOverlays,
 } from "@/lib/agent-browser/exec";
 import { log } from "@/lib/utils/log";
-import type { ScoutRunContext } from "../types";
+import type { ScoutRunContext } from "../scout/types";
 import type { SearchConfig } from "@/lib/profile/parse";
 
 const LINKEDIN_SEARCH_BASE = "https://www.linkedin.com/jobs/search/";
