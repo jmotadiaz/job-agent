@@ -43,6 +43,7 @@ interface StoredGeneration {
   skills_json: string;
   cover_paragraphs_json: string;
   rationale_json: string | null;
+  education_json: string | null;
   created_at: number;
   parent_generation_id: string | null;
   feedback_rating: number | null;
@@ -191,8 +192,21 @@ vi.mock("../evaluate/writing", () => ({
   },
 }));
 
+vi.mock("../revision-planner/agent", () => ({
+  revisionPlannerNode: {
+    execute: vi.fn().mockResolvedValue({
+      editCv: true,
+      editCover: true,
+      rationale: "Both need revision per feedback",
+    }),
+  },
+}));
+
 import { listGenerationsForJob } from "@/lib/db/generations";
 import { runWriter } from "../orchestrator";
+import { revisionPlannerNode } from "../revision-planner/agent";
+import { cvGenerator } from "../generate/cv";
+import { coverGenerator } from "../generate/cover";
 
 describe("Writer feedback & iteration integration", () => {
   beforeEach(() => {
@@ -291,7 +305,84 @@ describe("Writer feedback & iteration integration", () => {
     }
   });
 
-  it("(d) no endpoint allows editing feedback of an existing generation", async () => {
+  it("(d) revision editing only CV skips cover worker and copies from parent", async () => {
+    const parentResult = await runWriter({ jobId: "job-feedback-2" });
+    if (parentResult.kind !== "success") throw new Error("Parent failed");
+    const parentId = parentResult.generationId;
+
+    vi.mocked(cvGenerator.execute).mockClear();
+    vi.mocked(coverGenerator.execute).mockClear();
+
+    vi.mocked(revisionPlannerNode.execute).mockResolvedValueOnce({
+      editCv: true,
+      editCover: false,
+      rationale: "Only CV needs updates based on feedback",
+    });
+
+    const childResult = await runWriter({
+      jobId: "job-feedback-2",
+      parentGenerationId: parentId,
+      feedbackRating: 3,
+      feedbackComment: "Improve bullet descriptions",
+    });
+    if (childResult.kind !== "success") throw new Error("Child failed");
+
+    expect(cvGenerator.execute).toHaveBeenCalled();
+    expect(coverGenerator.execute).not.toHaveBeenCalled();
+
+    const childRow = generationStore.get(childResult.generationId);
+    expect(childRow?.parent_generation_id).toBe(parentId);
+    expect(childRow?.feedback_rating).toBe(3);
+    expect(childRow?.feedback_comment).toBe("Improve bullet descriptions");
+
+    const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
+    for (const id of [parentId, childResult.generationId]) {
+      fs.rmSync(path.join(GENERATED_PDFS_DIR, "job-feedback-2", id), {
+        recursive: true,
+        force: true,
+      });
+    }
+  });
+
+  it("(e) revision editing only cover skips cv worker and copies from parent", async () => {
+    const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
+
+    const parentResult = await runWriter({ jobId: "job-feedback-3" });
+    if (parentResult.kind !== "success") throw new Error("Parent failed");
+    const parentId = parentResult.generationId;
+
+    vi.mocked(cvGenerator.execute).mockClear();
+    vi.mocked(coverGenerator.execute).mockClear();
+
+    vi.mocked(revisionPlannerNode.execute).mockResolvedValueOnce({
+      editCv: false,
+      editCover: true,
+      rationale: "Only cover needs rewriting based on feedback",
+    });
+
+    const childResult = await runWriter({
+      jobId: "job-feedback-3",
+      parentGenerationId: parentId,
+      feedbackRating: 4,
+      feedbackComment: "Adjust tone to be more formal",
+    });
+    if (childResult.kind !== "success") throw new Error("Child failed");
+
+    expect(coverGenerator.execute).toHaveBeenCalled();
+    expect(cvGenerator.execute).not.toHaveBeenCalled();
+
+    const childRow = generationStore.get(childResult.generationId);
+    expect(childRow?.parent_generation_id).toBe(parentId);
+
+    for (const id of [parentId, childResult.generationId]) {
+      fs.rmSync(path.join(GENERATED_PDFS_DIR, "job-feedback-3", id), {
+        recursive: true,
+        force: true,
+      });
+    }
+  });
+
+  it("(f) no endpoint allows editing feedback of an existing generation", async () => {
     const { GENERATED_PDFS_DIR } = await import("@/lib/runtime/paths");
 
     const result = await runWriter({ jobId: "job-feedback-1" });

@@ -17,7 +17,7 @@ import type {
 const MODULE = "writer/generate/cv";
 
 export interface CvGeneratorInput {
-  plan: CvPlan;
+  plan?: CvPlan;
   priorityRequirements: string[];
   jobDescription: string;
   company: string;
@@ -48,7 +48,8 @@ export const cvGenerator = node(
   ): Promise<CvSolution> => {
     const { plan, priorityRequirements, jobDescription, company, title, profileContent } = input.input;
 
-    let prompt = `Generate the CV content for the following job offer. Follow the Plan below precisely.
+    let prompt = plan
+      ? `Generate the CV content for the following job offer. Follow the Plan below precisely.
 
 <target_company>${company}</target_company>
 <target_title>${title}</target_title>
@@ -63,33 +64,53 @@ ${profileContent}
 
 <plan>
 Priority requirements (${priorityRequirements.length}):
+`
+      : `Revise the CV for the following job offer. Apply the user feedback to the existing CV state below. Preserve everything not touched by the feedback.
+
+<target_company>${company}</target_company>
+<target_title>${title}</target_title>
+
+<job_offer>
+${jobDescription}
+</job_offer>
+
+<candidate_profile>
+${profileContent}
+</candidate_profile>
+
+<priority_requirements>
 `;
+
     for (let i = 0; i < priorityRequirements.length; i++) {
       prompt += `  [${i + 1}] ${priorityRequirements[i]}\n`;
     }
 
-    prompt += `\nSelected bullets (${plan.bullets.length} total):\n`;
-    for (const b of plan.bullets) {
-      const pr = priorityRequirements[b.priorityRequirementIndex - 1];
-      prompt += `- [${b.company}, ${b.role}, ${b.period}] ${b.originalText}\n`;
-      if (b.rewrittenText) {
-        prompt += `  Suggested rewrite: ${b.rewrittenText}\n`;
+    if (plan) {
+      prompt += `\nSelected bullets (${plan.bullets.length} total):\n`;
+      for (const b of plan.bullets) {
+        const pr = priorityRequirements[b.priorityRequirementIndex - 1];
+        prompt += `- [${b.company}, ${b.role}, ${b.period}] ${b.originalText}\n`;
+        if (b.rewrittenText) {
+          prompt += `  Suggested rewrite: ${b.rewrittenText}\n`;
+        }
+        prompt += `  Covers priority #${b.priorityRequirementIndex}${pr ? ` (${pr})` : ""}\n`;
       }
-      prompt += `  Covers priority #${b.priorityRequirementIndex}${pr ? ` (${pr})` : ""}\n`;
-    }
 
-    prompt += `\nSkill categories (${plan.skillCategories.length} total):\n`;
-    for (const cat of plan.skillCategories) {
-      prompt += `- ${cat.label}: ${cat.items.join(", ")}\n`;
-    }
+      prompt += `\nSkill categories (${plan.skillCategories.length} total):\n`;
+      for (const cat of plan.skillCategories) {
+        prompt += `- ${cat.label}: ${cat.items.join(", ")}\n`;
+      }
 
-    prompt += `\nEducation:\n`;
-    for (const edu of plan.education) {
-      prompt += `- ${edu.degree} @ ${edu.institution} (${edu.period})\n`;
-    }
+      prompt += `\nEducation:\n`;
+      for (const edu of plan.education) {
+        prompt += `- ${edu.degree} @ ${edu.institution} (${edu.period})\n`;
+      }
 
-    prompt += `\nLayout budget: max ${plan.layoutBudget.maxBullets} bullets, ${plan.layoutBudget.maxSkillCategories} skill categories, ${plan.layoutBudget.maxTotalSkills} total skills.\n`;
-    prompt += `</plan>\n`;
+      prompt += `\nLayout budget: max ${plan.layoutBudget.maxBullets} bullets, ${plan.layoutBudget.maxSkillCategories} skill categories, ${plan.layoutBudget.maxTotalSkills} total skills.\n`;
+      prompt += `</plan>\n`;
+    } else {
+      prompt += `</priority_requirements>\n`;
+    }
 
     if (input.feedback) {
       prompt += `\n<previous_attempt_feedback>\n`;
@@ -130,9 +151,8 @@ Priority requirements (${priorityRequirements.length}):
 
     log.info(MODULE, "cv generation begin", {
       iteration: input.iteration,
-      bulletCount: plan.bullets.length,
+      bulletCount: plan?.bullets.length ?? (input.input.parentCv?.experience.reduce((s, e) => s + e.bullets.length, 0) ?? 0),
       hasFeedback: !!input.feedback,
-      feedback: input.feedback,
       seedSource: seedFromPrevious?.source ?? null,
     });
 

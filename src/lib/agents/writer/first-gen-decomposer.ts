@@ -9,7 +9,7 @@ import type {
   EducationEntry,
 } from "./types";
 
-const MODULE = "writer/decomposer";
+const MODULE = "writer/first-gen-decomposer";
 
 function parseJsonOrNull<T>(raw: string | null | undefined): T | null {
   if (!raw) return null;
@@ -23,7 +23,7 @@ function parseJsonOrNull<T>(raw: string | null | undefined): T | null {
   }
 }
 
-export const decomposerNode = node(
+export const firstGenDecomposerNode = node(
   async (planIn: PlanInput): Promise<{
     cv: CvGeneratorInput;
     cover: CoverGeneratorInput;

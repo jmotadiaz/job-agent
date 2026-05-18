@@ -9,7 +9,7 @@ import type { CoverPlan, CoverSolution, CompositeFeedback, WriterRunContext } fr
 const MODULE = "writer/generate/cover";
 
 export interface CoverGeneratorInput {
-  plan: CoverPlan;
+  plan?: CoverPlan;
   jobDescription: string;
   company: string;
   title: string;
@@ -37,7 +37,8 @@ export const coverGenerator = node(
   ): Promise<CoverSolution> => {
     const { plan, jobDescription, company, title, profileContent } = input.input;
 
-    let prompt = `Generate the cover letter for the following job offer. Follow the Plan below precisely.
+    let prompt = plan
+      ? `Generate the cover letter for the following job offer. Follow the Plan below precisely.
 
 <target_company>${company}</target_company>
 <target_title>${title}</target_title>
@@ -54,17 +55,33 @@ ${profileContent}
 Hook: ${plan.outline.hook}
 
 Evidence paragraphs (${plan.outline.evidence.length} total):
-`;
-    for (let i = 0; i < plan.outline.evidence.length; i++) {
-      prompt += `${i + 1}. ${plan.outline.evidence[i]}\n`;
-    }
+`
+      : `Revise the cover letter for the following job offer. Apply the user feedback to the existing cover letter below.
 
-    prompt += `\nClose: ${plan.outline.close}\n`;
-    if (plan.outline.toneNote) {
-      prompt += `Tone note: ${plan.outline.toneNote}\n`;
+<target_company>${company}</target_company>
+<target_title>${title}</target_title>
+
+<job_offer>
+${jobDescription}
+</job_offer>
+
+<candidate_profile>
+${profileContent}
+</candidate_profile>
+`;
+
+    if (plan) {
+      for (let i = 0; i < plan.outline.evidence.length; i++) {
+        prompt += `${i + 1}. ${plan.outline.evidence[i]}\n`;
+      }
+
+      prompt += `\nClose: ${plan.outline.close}\n`;
+      if (plan.outline.toneNote) {
+        prompt += `Tone note: ${plan.outline.toneNote}\n`;
+      }
+      prompt += `Tone guidelines: ${plan.toneGuidelines}\n`;
+      prompt += `</plan>\n`;
     }
-    prompt += `Tone guidelines: ${plan.toneGuidelines}\n`;
-    prompt += `</plan>\n`;
 
     if (input.feedback) {
       prompt += `\n<previous_attempt_feedback>\n`;
@@ -121,9 +138,8 @@ Evidence paragraphs (${plan.outline.evidence.length} total):
 
     log.info(MODULE, "cover generation begin", {
       iteration: input.iteration,
-      evidenceCount: plan.outline.evidence.length,
+      evidenceCount: plan?.outline.evidence.length ?? 0,
       hasFeedback: !!input.feedback,
-      feedback: input.feedback,
       seedSource: seedParagraphs?.source ?? null,
     });
 

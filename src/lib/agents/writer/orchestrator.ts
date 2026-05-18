@@ -14,7 +14,7 @@ import {
 import { LOG_DIR, GENERATED_PDFS_DIR } from "@/lib/runtime/paths";
 import { log } from "@/lib/utils/log";
 import type { PlanInput } from "./plan/agent";
-import { writerWorkflow } from "./workflow";
+import { writerFirstGenWorkflow, writerRevisionWorkflow } from "./workflow";
 
 const MODULE = "writer/orchestrator";
 
@@ -62,6 +62,10 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
             coverParagraphsJson: parent.cover_paragraphs_json,
             feedbackRating: parent.feedback_rating,
             feedbackComment: parent.feedback_comment,
+            cvPath: parent.cv_path,
+            coverPath: parent.cover_path,
+            rationaleJson: parent.rationale_json,
+            educationJson: parent.education_json ?? null,
           };
         }
       }
@@ -71,11 +75,14 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
       fs.mkdirSync(outDir, { recursive: true });
 
 
-      log.info(MODULE, "distributed workflow begin", { jobId, generationId });
+      const isRevision = !!parentGenerationId;
+      const workflow = isRevision ? writerRevisionWorkflow : writerFirstGenWorkflow;
+
+      log.info(MODULE, `${isRevision ? "revision" : "first-gen"} workflow begin`, { jobId, generationId, isRevision });
       const t0 = Date.now();
 
       try {
-        const result = await writerWorkflow.execute({
+        const result = await workflow.execute({
           ...input,
           jobDescription,
           company: job.company,
@@ -96,7 +103,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
           parentGeneration,
         });
 
-        log.info(MODULE, "distributed workflow end", {
+        log.info(MODULE, "workflow end", {
           duration: Date.now() - t0,
           autoReviewPassed: result.autoReviewPassed,
           cvIterations: result.cvIterations,
@@ -112,6 +119,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
           bullets_json: JSON.stringify(result.cv.experience),
           skills_json: JSON.stringify(result.cv.skillCategories),
           cover_paragraphs_json: JSON.stringify(result.cover.paragraphs),
+          education_json: JSON.stringify(result.cv.education),
           rationale_json: JSON.stringify({
             priorityRequirements: result.priorityRequirements,
             text: result.rationale,
@@ -130,7 +138,7 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
         };
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
-        log.error(MODULE, "distributed workflow failed", { error: error.message });
+        log.error(MODULE, "workflow failed", { error: error.message });
         setRunOutcome("error", { message: error.message });
         return { kind: "error", message: error.message };
       }

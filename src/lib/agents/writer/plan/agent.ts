@@ -98,6 +98,10 @@ export interface PlanInput extends WriterInput {
     coverParagraphsJson: string;
     feedbackRating?: number | null;
     feedbackComment?: string | null;
+    cvPath: string;
+    coverPath: string;
+    rationaleJson: string | null;
+    educationJson: string | null;
   } | null;
 }
 

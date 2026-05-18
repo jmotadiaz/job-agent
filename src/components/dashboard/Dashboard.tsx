@@ -531,6 +531,7 @@ function JobRow({
           skills_json: "[]",
           cover_paragraphs_json: "[]",
           rationale_json: null,
+          education_json: null,
           created_at: Date.now(),
           parent_generation_id: null,
           feedback_rating: null,

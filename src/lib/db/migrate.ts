@@ -57,6 +57,11 @@ export function migrate(): void {
     log.info("db", "migrate: added generations.rationale_json");
   }
 
+  if (!colNames.has("education_json")) {
+    db.exec(`ALTER TABLE generations ADD COLUMN education_json TEXT NULL`);
+    log.info("db", "migrate: added generations.education_json");
+  }
+
   // Jobs additive columns
   const jobColumns = db
     .prepare("PRAGMA table_info(jobs)")
