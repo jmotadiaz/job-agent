@@ -245,7 +245,14 @@ function FeedbackForm({
       <div className="mb-2 text-xs text-[var(--text-secondary)] font-semibold tracking-[0.5px] uppercase">
         Feedback
       </div>
-      <StarRating value={rating} onChange={setRating} />
+      <div className="flex items-center gap-2 flex-wrap">
+        <StarRating value={rating} onChange={setRating} />
+        {!rating && (
+          <span className="text-[11px] text-[var(--text-muted)] italic">
+            Pick a rating to enable Iterate
+          </span>
+        )}
+      </div>
       <textarea
         placeholder="Optional comment — what should change?"
         value={comment}
@@ -259,6 +266,7 @@ function FeedbackForm({
           className="btn btn-primary btn-sm"
           disabled={!rating || loading}
           onClick={handleSubmit}
+          title={!rating ? "Pick a rating first" : undefined}
         >
           {loading ? (
             <>

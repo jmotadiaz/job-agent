@@ -76,6 +76,16 @@ Return a JSON object matching this structure exactly. FIRST distill 3-5 priority
 }
 </output_format>
 
+<iteration_mode>
+If the user prompt contains <previous_generation>, this is an iteration — NOT a fresh generation. Treat it as an editing job:
+- Use the <previous_generation> bullets, skills, education, and cover paragraphs as the starting point.
+- Read <user_feedback> carefully. ONLY modify items that the feedback explicitly calls out (or that are clearly inconsistent with the offer in a way the feedback implies).
+- Preserve every other item from <previous_generation> verbatim: same wording in bullets, same skill labels and order, same education entries, same cover paragraphs.
+- Do NOT replace bullets with semantically-equivalent rewrites just because you can. If the feedback does not target a bullet, copy it as-is.
+- Do NOT renumber or re-derive priorityRequirements unless the feedback says the priorities are wrong; reuse the priorities implied by the previous generation when they still fit.
+- The rationaleDraft must focus on WHAT YOU CHANGED in response to feedback and WHY, listing the items left untouched only when their preservation is itself a deliberate choice.
+</iteration_mode>
+
 <rationale_draft_rules>
 The rationaleDraft documents your decisions. Use Spanish (the user is Spanish-speaking). Include:
 1. Bullets incluidos: for each selected bullet, name the profile entry and which priority requirement it covers.

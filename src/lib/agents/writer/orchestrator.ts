@@ -112,7 +112,10 @@ export async function runWriter(input: WriterInput): Promise<WriterOutput> {
           bullets_json: JSON.stringify(result.cv.experience),
           skills_json: JSON.stringify(result.cv.skillCategories),
           cover_paragraphs_json: JSON.stringify(result.cover.paragraphs),
-          rationale_json: JSON.stringify({ text: result.rationale }),
+          rationale_json: JSON.stringify({
+            priorityRequirements: result.priorityRequirements,
+            text: result.rationale,
+          }),
           parent_generation_id: parentGenerationId ?? null,
           feedback_rating: feedbackRating ?? null,
           feedback_comment: feedbackComment ?? null,

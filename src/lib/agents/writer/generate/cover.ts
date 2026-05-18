@@ -27,6 +27,8 @@ export interface CoverGeneratorInput {
   };
   outDir: string;
   rationaleDraft: string;
+  parentCoverParagraphs?: string[] | null;
+  userFeedbackComment?: string | null;
 }
 
 export const coverGenerator = node(
@@ -81,13 +83,6 @@ Evidence paragraphs (${plan.outline.evidence.length} total):
       prompt += `</previous_attempt_feedback>\n`;
     }
 
-    log.info(MODULE, "cover generation begin", {
-      iteration: input.iteration,
-      evidenceCount: plan.outline.evidence.length,
-      hasFeedback: !!input.feedback,
-      feedback: input.feedback,
-    });
-
     const ctx: WriterRunContext = {
       experience: null,
       skillCategories: null,
@@ -96,6 +91,41 @@ Evidence paragraphs (${plan.outline.evidence.length} total):
       rationale: null,
       finalized: false,
     };
+
+    const seedParagraphs = input.previousSolution
+      ? {
+          paragraphs: input.previousSolution.paragraphs,
+          source: "previousSolution" as const,
+        }
+      : input.input.parentCoverParagraphs
+        ? {
+            paragraphs: input.input.parentCoverParagraphs,
+            source: "parentGeneration" as const,
+          }
+        : null;
+
+    if (seedParagraphs) {
+      ctx.coverParagraphs = seedParagraphs.paragraphs;
+      prompt += `\n<current_cover_state>\n`;
+      prompt += `paragraphs: ${JSON.stringify(seedParagraphs.paragraphs)}\n`;
+      prompt += `</current_cover_state>\n`;
+      prompt += `\nThe cover letter state above is the authoritative starting point. Preserve paragraphs that the feedback does not target.\n`;
+
+      if (
+        seedParagraphs.source === "parentGeneration" &&
+        input.input.userFeedbackComment
+      ) {
+        prompt += `\n<user_feedback>\n${input.input.userFeedbackComment}\n</user_feedback>\n`;
+      }
+    }
+
+    log.info(MODULE, "cover generation begin", {
+      iteration: input.iteration,
+      evidenceCount: plan.outline.evidence.length,
+      hasFeedback: !!input.feedback,
+      feedback: input.feedback,
+      seedSource: seedParagraphs?.source ?? null,
+    });
 
     const agent = createCoverAgent(ctx);
     const t0 = Date.now();

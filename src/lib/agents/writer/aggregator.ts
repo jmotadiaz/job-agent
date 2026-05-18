@@ -44,6 +44,7 @@ export const aggregatorNode = node(
       cvResult,
       coverResult,
       rationale: aggInput.tasks.cv.rationaleDraft,
+      priorityRequirements: aggInput.tasks.cv.priorityRequirements,
     });
   },
 );

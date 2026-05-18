@@ -4,7 +4,15 @@ import { log } from "@/lib/utils/log";
 import { appendAgentStep } from "@/lib/runtime/agent-trace";
 import { createCvAgent } from "../cv/agent";
 import { cvRender } from "../render/cv";
-import type { CvPlan, CvSolution, CompositeFeedback, WriterRunContext } from "../types";
+import type {
+  CvPlan,
+  CvSolution,
+  CompositeFeedback,
+  WriterRunContext,
+  ExperienceEntry,
+  SkillCategoryEntry,
+  EducationEntry,
+} from "../types";
 
 const MODULE = "writer/generate/cv";
 
@@ -26,6 +34,12 @@ export interface CvGeneratorInput {
   };
   outDir: string;
   rationaleDraft: string;
+  parentCv?: {
+    experience: ExperienceEntry[];
+    skillCategories: SkillCategoryEntry[];
+    education: EducationEntry[];
+  } | null;
+  userFeedbackComment?: string | null;
 }
 
 export const cvGenerator = node(
@@ -94,13 +108,6 @@ Priority requirements (${priorityRequirements.length}):
       prompt += `</previous_attempt_feedback>\n`;
     }
 
-    log.info(MODULE, "cv generation begin", {
-      iteration: input.iteration,
-      bulletCount: plan.bullets.length,
-      hasFeedback: !!input.feedback,
-      feedback: input.feedback,
-    });
-
     const ctx: WriterRunContext = {
       experience: null,
       skillCategories: null,
@@ -109,6 +116,45 @@ Priority requirements (${priorityRequirements.length}):
       rationale: null,
       finalized: false,
     };
+
+    const seedFromPrevious = input.previousSolution
+      ? {
+          experience: input.previousSolution.experience,
+          skillCategories: input.previousSolution.skillCategories,
+          education: input.previousSolution.education,
+          source: "previousSolution" as const,
+        }
+      : input.input.parentCv
+        ? { ...input.input.parentCv, source: "parentGeneration" as const }
+        : null;
+
+    log.info(MODULE, "cv generation begin", {
+      iteration: input.iteration,
+      bulletCount: plan.bullets.length,
+      hasFeedback: !!input.feedback,
+      feedback: input.feedback,
+      seedSource: seedFromPrevious?.source ?? null,
+    });
+
+    if (seedFromPrevious) {
+      ctx.experience = seedFromPrevious.experience;
+      ctx.skillCategories = seedFromPrevious.skillCategories;
+      ctx.education = seedFromPrevious.education;
+
+      prompt += `\n<current_cv_state>\n`;
+      prompt += `experience: ${JSON.stringify(seedFromPrevious.experience)}\n`;
+      prompt += `skillCategories: ${JSON.stringify(seedFromPrevious.skillCategories)}\n`;
+      prompt += `education: ${JSON.stringify(seedFromPrevious.education)}\n`;
+      prompt += `</current_cv_state>\n`;
+      prompt += `\nThe CV state above is the authoritative starting point. Only patch items that need to change.\n`;
+
+      if (
+        seedFromPrevious.source === "parentGeneration" &&
+        input.input.userFeedbackComment
+      ) {
+        prompt += `\n<user_feedback>\n${input.input.userFeedbackComment}\n</user_feedback>\n`;
+      }
+    }
 
     const agent = createCvAgent(ctx);
     const t0 = Date.now();

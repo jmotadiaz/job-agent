@@ -1,7 +1,7 @@
 import { ToolLoopAgent, isLoopFinished } from "ai";
 import { deepinfra } from "@ai-sdk/deepinfra";
 import { log } from "@/lib/utils/log";
-import { makeComposeCoverLetterTool } from "../../tools/composeCoverLetter";
+import { makePatchCoverParagraphsTool } from "../../tools/patchCoverParagraphs";
 import { makeFinalizeGenerationTool } from "../../tools/finalizeGeneration";
 import { COVER_SYSTEM_PROMPT } from "./prompt";
 import type { WriterRunContext } from "../types";
@@ -13,7 +13,7 @@ export function createCoverAgent(ctx: WriterRunContext) {
     model: deepinfra("deepseek-ai/DeepSeek-V4-Flash"),
     instructions: COVER_SYSTEM_PROMPT,
     tools: {
-      composeCoverLetter: makeComposeCoverLetterTool(ctx),
+      patchCoverParagraphs: makePatchCoverParagraphsTool(ctx),
       finalizeGeneration: makeFinalizeGenerationTool(ctx),
     },
     stopWhen: (state) => {

@@ -1,7 +1,9 @@
 import { ToolLoopAgent, isLoopFinished } from "ai";
 import { deepinfra } from "@ai-sdk/deepinfra";
 import { log } from "@/lib/utils/log";
-import { makeComposeCVTool } from "../../tools/composeCV";
+import { makePatchExperienceTool } from "../../tools/patchExperience";
+import { makePatchSkillCategoriesTool } from "../../tools/patchSkillCategories";
+import { makePatchEducationTool } from "../../tools/patchEducation";
 import { makeFinalizeGenerationTool } from "../../tools/finalizeGeneration";
 import { CV_SYSTEM_PROMPT } from "./prompt";
 import type { WriterRunContext } from "../types";
@@ -13,7 +15,9 @@ export function createCvAgent(ctx: WriterRunContext) {
     model: deepinfra("deepseek-ai/DeepSeek-V4-Flash"),
     instructions: CV_SYSTEM_PROMPT,
     tools: {
-      composeCV: makeComposeCVTool(ctx),
+      patchExperience: makePatchExperienceTool(ctx),
+      patchSkillCategories: makePatchSkillCategoriesTool(ctx),
+      patchEducation: makePatchEducationTool(ctx),
       finalizeGeneration: makeFinalizeGenerationTool(ctx),
     },
     stopWhen: (state) => {

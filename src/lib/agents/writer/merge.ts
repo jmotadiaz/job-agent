@@ -16,6 +16,7 @@ export interface MergeInput {
     iterations: number;
   };
   rationale: string;
+  priorityRequirements: string[];
 }
 
 export const mergeNode = node(async (input: MergeInput): Promise<WriterResult> => {
@@ -33,6 +34,7 @@ export const mergeNode = node(async (input: MergeInput): Promise<WriterResult> =
     cv: input.cvResult.solution,
     cover: input.coverResult.solution,
     rationale: input.rationale,
+    priorityRequirements: input.priorityRequirements,
     autoReviewPassed,
     cvIterations: input.cvResult.iterations,
     coverIterations: input.coverResult.iterations,

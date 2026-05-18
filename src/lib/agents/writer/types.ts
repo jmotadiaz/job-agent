@@ -114,6 +114,7 @@ export interface WriterResult {
   cv: CvSolution;
   cover: CoverSolution;
   rationale: string;
+  priorityRequirements: string[];
   autoReviewPassed: boolean;
   cvIterations: number;
   coverIterations: number;
