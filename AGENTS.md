@@ -4,7 +4,7 @@ This is **Job Scout** — a Next.js app that automates job searching and tailore
 npm run dev       # Start Next.js dev server (runs DB migrations via instrumentation.ts)
 npm run build     # Production build
 npm run lint      # ESLint
-npm test          # Run all Vitest tests
+npm test          # Run Vitest tests
 ```
 
 ## Project intent
@@ -39,6 +39,8 @@ Before declaring a task finished, verify the codebase is still healthy:
 
 1. `npm run lint` — must pass (no new errors introduced).
 2. `npm run build` — must compile successfully.
-3. If you added or changed logic covered by existing tests, run them with `npx vitest run <path>` and ensure they pass.
+3. If you added or changed logic covered by existing tests, run them and ensure they pass.
+   - Run all tests: `npm test`
+   - Run specific tests: `npm test -- <path>` (e.g. `npm test -- src/lib/agent-browser/__tests__/smoke.test.ts`)
 
 Do not skip these steps. If lint or build fails, fix the issues before finishing.

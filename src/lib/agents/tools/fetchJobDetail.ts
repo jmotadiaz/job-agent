@@ -4,7 +4,7 @@ import { deepinfra } from "@ai-sdk/deepinfra";
 import { generateObject } from "ai";
 import {
   openUrl,
-  waitLoad,
+  waitForSelector,
   getText,
   closeSession,
   dismissBlockingOverlays,
@@ -14,6 +14,10 @@ import { dump } from "@/lib/utils/dump";
 import { fillPrompt } from "@/lib/utils/prompt";
 import { JobDetailsSchema } from "../scout/types";
 import type { JobSummary, ScoutRunContext } from "../scout/types";
+
+// LinkedIn job detail page loaded indicator — change this if LinkedIn updates their markup.
+// Monitor trace durations to detect breakage and adjust the timeout or selector accordingly.
+const PAGE_LOADED_SELECTOR = ".description__text";
 
 const SYSTEM_PROMPT = `You are a job description parser. Extract structured data from job postings and return it as a JSON object.
 
@@ -65,7 +69,7 @@ export function makeFetchJobDetailTool(ctx: ScoutRunContext) {
 
       try {
         await openUrl(url, session);
-        await waitLoad(session);
+        await waitForSelector(PAGE_LOADED_SELECTOR, session);
 
         try {
           await dismissBlockingOverlays(session);

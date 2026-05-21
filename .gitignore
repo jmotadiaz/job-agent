@@ -46,6 +46,7 @@ blocked-companies.md
 data/
 .agent-browser/
 generated-pdfs/
+.antigravitycli/
 
 # Scout debug snapshots
 scout-snapshots/
