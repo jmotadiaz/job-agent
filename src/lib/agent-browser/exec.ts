@@ -1,10 +1,86 @@
-import { execFile } from "node:child_process";
+import { execFile, execSync } from "node:child_process";
 import { promisify } from "node:util";
+import path from "node:path";
+import { platform, arch } from "node:os";
+import fs from "node:fs";
 import { log } from "@/lib/utils/log";
 import { dump } from "@/lib/utils/dump";
 
 const execFileAsync = promisify(execFile);
 const MODULE = "agent-browser/exec";
+
+interface AgentBrowserCommand {
+  command: string;
+  args: string[];
+}
+
+function resolveAgentBrowserCommand(): AgentBrowserCommand {
+  const cwd = process.cwd();
+  
+  // Strategy 1: Try direct platform-specific native binary from node_modules/agent-browser/bin
+  try {
+    const osName = platform();
+    const cpuArch = arch();
+    
+    let osKey: string | null = null;
+    if (osName === "darwin") {
+      osKey = "darwin";
+    } else if (osName === "linux") {
+      // Check for musl libc (e.g. Alpine Linux)
+      let isMusl = false;
+      try {
+        if (typeof execSync === "function") {
+          const result = execSync("ldd --version 2>&1 || true", { encoding: "utf8" });
+          isMusl = result.toLowerCase().includes("musl");
+        } else {
+          isMusl = fs.existsSync("/lib/ld-musl-x86_64.so.1") || fs.existsSync("/lib/ld-musl-aarch64.so.1");
+        }
+      } catch {
+        isMusl = fs.existsSync("/lib/ld-musl-x86_64.so.1") || fs.existsSync("/lib/ld-musl-aarch64.so.1");
+      }
+      osKey = isMusl ? "linux-musl" : "linux";
+    } else if (osName === "win32") {
+      osKey = "win32";
+    }
+
+    let archKey: string | null = null;
+    if (cpuArch === "x64" || cpuArch === "x86_64") {
+      archKey = "x64";
+    } else if (cpuArch === "arm64" || cpuArch === "aarch64") {
+      archKey = "arm64";
+    }
+
+    if (osKey && archKey) {
+      const ext = osName === "win32" ? ".exe" : "";
+      const binaryName = `agent-browser-${osKey}-${archKey}${ext}`;
+      const nativePath = path.resolve(/*turbopackIgnore: true*/ cwd, "node_modules/agent-browser/bin", binaryName);
+      
+      if (fs.existsSync(nativePath)) {
+        // Ensure execution permission on Unix-like systems
+        if (osName !== "win32") {
+          try {
+            fs.accessSync(nativePath, fs.constants.X_OK);
+          } catch {
+            fs.chmodSync(nativePath, 0o755);
+          }
+        }
+        return { command: nativePath, args: [] };
+      }
+    }
+  } catch (err) {
+    // Ignore and proceed to fallback
+    log.warn(MODULE, "failed resolving native binary, falling back", { error: String(err) });
+  }
+
+  // Strategy 2: Try local node_modules bin wrapper script
+  const localBin = path.resolve(/*turbopackIgnore: true*/ cwd, "node_modules/.bin/agent-browser");
+  if (fs.existsSync(localBin)) {
+    return { command: localBin, args: [] };
+  }
+
+  // Strategy 3: Fall back to npx
+  return { command: "npx", args: ["agent-browser"] };
+}
 
 const DISMISS_PATTERNS = [
   /- button "Dismiss" \[ref=([^\]]+)\]/,
@@ -28,6 +104,7 @@ export interface AgentBrowserResult {
 export async function runAgentBrowser(
   args: string[],
   session?: string,
+  timeoutMs?: number,
 ): Promise<AgentBrowserResult> {
   const allArgs = [...(session ? ["--session", session] : []), ...args, "--json"];
   // Redact any auth tokens that might appear in URLs
@@ -41,25 +118,45 @@ export async function runAgentBrowser(
   let stderr: string;
 
   try {
-    const result = await execFileAsync("agent-browser", allArgs, {
-      timeout: 30_000,
+    const cmdInfo = resolveAgentBrowserCommand();
+    const cmdArgs = [...cmdInfo.args, ...allArgs];
+    const result = await execFileAsync(cmdInfo.command, cmdArgs, {
+      timeout: timeoutMs ?? 30_000,
       maxBuffer: 10 * 1024 * 1024,
     });
     stdout = result.stdout;
     stderr = result.stderr;
   } catch (err: unknown) {
+    const cmdInfo = resolveAgentBrowserCommand();
+    const cmdArgs = [...cmdInfo.args, ...allArgs];
     const e = err as {
       stdout?: string;
       stderr?: string;
       message?: string;
-      code?: number;
+      code?: number | string;
     };
+    
+    // Gather deep diagnostics to pinpoint path, environment, permission, or executable issues
+    let exists = false;
+    let executable = false;
+    try {
+      exists = fs.existsSync(cmdInfo.command);
+      if (exists) {
+        fs.accessSync(cmdInfo.command, fs.constants.X_OK);
+        executable = true;
+      }
+    } catch {}
+
     log.error(MODULE, "exec error", {
-      args: safeArgs,
+      resolvedCommand: cmdInfo.command,
+      commandArgs: cmdArgs,
+      exists,
+      executable,
       exitCode: e.code ?? -1,
       stderr: (e.stderr ?? "").slice(0, 500),
       message: e.message,
       duration: Date.now() - t0,
+      envPath: process.env.PATH ?? "",
     });
     const raw = e.stdout ?? "";
     try {
@@ -131,6 +228,10 @@ export async function openUrl(url: string, session?: string): Promise<void> {
 
 export async function waitLoad(session?: string): Promise<void> {
   await runAgentBrowser(["wait", "--load", "networkidle"], session);
+}
+
+export async function waitForSelector(selector: string, session?: string, timeoutMs?: number): Promise<void> {
+  await runAgentBrowser(["wait", selector], session, timeoutMs);
 }
 
 export async function snapshot(
