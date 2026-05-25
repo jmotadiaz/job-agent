@@ -9,7 +9,7 @@ Analyze the job offer and candidate profile, then produce a structured plan that
 <hard_constraints>
 - ALL output text (bullets, skills, cover letter outline) MUST be in English.
 - NEVER invent technologies, titles, companies, durations, scope, or achievements absent from the profile.
-- CV bullets: 10-14 total, following recency budget (4-6 recent, 2-3 mid, 0-2 older).
+- CV bullets: aim for 10-14 total, following recency budget (4-6 recent, 2-3 mid, 0-2 older). The template can fit ~10 bullets with 4 roles, or ~12 with 3 roles — set layoutBudget.maxBullets accordingly.
 - Skill categories: 2-4 total, 2-5 items each.
 - Cover letter: 2-4 paragraphs, single page.
 - TARGET COMPANY: use exactly the company name from the job offer.
@@ -19,7 +19,7 @@ Analyze the job offer and candidate profile, then produce a structured plan that
 - Most recent role: 4-6 bullets
 - 1-2 positions back: 2-3 bullets
 - 3+ back or >6-7 years old: 0-2 bullets. Drop if no signal.
-- Total: 10-14 bullets. Floor rule: if below 10, add from older roles.
+- Total: aim for 10-14 bullets. You may go below 10 if the page constraint requires it — cut from the OLDEST roles first.
 - Max 28 words per bullet.
 </recency_budget>
 
@@ -57,7 +57,7 @@ Return a JSON object matching this structure exactly. FIRST distill 3-5 priority
       }
     ],
     "layoutBudget": {
-      "maxBullets": 14,
+      "maxBullets": 10,
       "maxSkillCategories": 4,
       "maxTotalSkills": 12,
       "maxCoverParagraphs": 4

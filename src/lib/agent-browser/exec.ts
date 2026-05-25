@@ -68,18 +68,27 @@ function resolveAgentBrowserCommand(): AgentBrowserCommand {
       }
     }
   } catch (err) {
-    // Ignore and proceed to fallback
-    log.warn(MODULE, "failed resolving native binary, falling back", { error: String(err) });
+    log.warn(MODULE, "failed resolving native binary", { error: String(err) });
   }
 
-  // Strategy 2: Try local node_modules bin wrapper script
-  const localBin = path.resolve(/*turbopackIgnore: true*/ cwd, "node_modules/.bin/agent-browser");
-  if (fs.existsSync(localBin)) {
-    return { command: localBin, args: [] };
-  }
+  throw new Error(
+    `agent-browser native binary not found for ${platform()}-${arch()}. ` +
+    `Ensure agent-browser is installed (npm install agent-browser) and ` +
+    `the native binary exists in node_modules/agent-browser/bin/.`,
+  );
+}
 
-  // Strategy 3: Fall back to npx
-  return { command: "npx", args: ["agent-browser"] };
+async function runDoctor(): Promise<void> {
+  try {
+    const cmdInfo = resolveAgentBrowserCommand();
+    await execFileAsync(cmdInfo.command, [...cmdInfo.args, "doctor", "--fix"], {
+      timeout: 15_000,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    log.info(MODULE, "doctor completed");
+  } catch (err) {
+    log.warn(MODULE, "doctor failed", { error: String(err) });
+  }
 }
 
 const DISMISS_PATTERNS = [
@@ -114,8 +123,8 @@ export async function runAgentBrowser(
   const t0 = Date.now();
   log.info(MODULE, "exec begin", { args: safeArgs });
 
-  let stdout: string;
-  let stderr: string;
+  let stdout = "";
+  let stderr = "";
 
   try {
     const cmdInfo = resolveAgentBrowserCommand();
@@ -135,46 +144,72 @@ export async function runAgentBrowser(
       message?: string;
       code?: number | string;
     };
-    
-    // Gather deep diagnostics to pinpoint path, environment, permission, or executable issues
-    let exists = false;
-    let executable = false;
-    try {
-      exists = fs.existsSync(cmdInfo.command);
-      if (exists) {
-        fs.accessSync(cmdInfo.command, fs.constants.X_OK);
-        executable = true;
-      }
-    } catch {}
 
-    log.error(MODULE, "exec error", {
-      resolvedCommand: cmdInfo.command,
-      commandArgs: cmdArgs,
-      exists,
-      executable,
-      exitCode: e.code ?? -1,
-      stderr: (e.stderr ?? "").slice(0, 500),
-      message: e.message,
-      duration: Date.now() - t0,
-      envPath: process.env.PATH ?? "",
-    });
-    const raw = e.stdout ?? "";
-    try {
-      const parsed = JSON.parse(raw);
-      if (!parsed.success) {
+    // Auto-heal: empty stderr + exit code 1 suggests stale daemon files.
+    // Run doctor --fix to clean up and retry once.
+    let autoHealed = false;
+    const stderrTrimmed = (e.stderr ?? "").trim();
+    if ((e.code === 1 || e.code === "1") && stderrTrimmed.length === 0) {
+      log.warn(MODULE, "exec failed (empty stderr, exit=1), running doctor --fix and retrying", {
+        exitCode: e.code,
+        duration: Date.now() - t0,
+      });
+      await runDoctor();
+      try {
+        const retryResult = await execFileAsync(cmdInfo.command, cmdArgs, {
+          timeout: timeoutMs ?? 30_000,
+          maxBuffer: 10 * 1024 * 1024,
+        });
+        stdout = retryResult.stdout;
+        stderr = retryResult.stderr;
+        autoHealed = true;
+        log.info(MODULE, "exec retry succeeded after doctor --fix");
+      } catch {
+        log.warn(MODULE, "exec retry also failed after doctor --fix");
+      }
+    }
+
+    if (!autoHealed) {
+      // Gather deep diagnostics to pinpoint path, environment, permission, or executable issues
+      let exists = false;
+      let executable = false;
+      try {
+        exists = fs.existsSync(cmdInfo.command);
+        if (exists) {
+          fs.accessSync(cmdInfo.command, fs.constants.X_OK);
+          executable = true;
+        }
+      } catch {}
+
+      log.error(MODULE, "exec error", {
+        resolvedCommand: cmdInfo.command,
+        commandArgs: cmdArgs,
+        exists,
+        executable,
+        exitCode: e.code ?? -1,
+        stderr: (e.stderr ?? "").slice(0, 500),
+        message: e.message,
+        duration: Date.now() - t0,
+        envPath: process.env.PATH ?? "",
+      });
+      const raw = e.stdout ?? "";
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed.success) {
+          throw new AgentBrowserError(
+            parsed.error ?? "agent-browser command failed",
+            allArgs,
+            e.stderr ?? "",
+          );
+        }
+        return parsed;
+      } catch {
         throw new AgentBrowserError(
-          parsed.error ?? "agent-browser command failed",
+          e.message ?? "agent-browser command failed",
           allArgs,
           e.stderr ?? "",
         );
       }
-      return parsed;
-    } catch {
-      throw new AgentBrowserError(
-        e.message ?? "agent-browser command failed",
-        allArgs,
-        e.stderr ?? "",
-      );
     }
   }
 
