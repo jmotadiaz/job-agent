@@ -26,6 +26,7 @@ import {
 import type { Job } from "@/lib/db/jobs";
 import type { Generation } from "@/lib/db/generations";
 import { LogPanel } from "@/components/log/LogPanel";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -767,6 +768,16 @@ function JobRow({
                 depth={0}
               />
             ))}
+          </div>
+
+          {/* Advisor Chat */}
+          <div>
+            <h3 className="mt-0 mx-0 mb-2.5 text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-[0.5px]">
+              <span className="flex items-center gap-1.5">
+                <MessageSquare size={14} /> Advisor Chat
+              </span>
+            </h3>
+            <ChatPanel jobId={job.id} />
           </div>
         </div>
       )}

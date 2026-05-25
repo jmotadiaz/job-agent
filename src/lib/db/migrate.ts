@@ -25,6 +25,25 @@ export function migrate(): void {
       UNIQUE(source, external_id)
     );
 
+    CREATE TABLE IF NOT EXISTS job_chats (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+      title TEXT,
+      agent_role TEXT NOT NULL DEFAULT 'job_advisor',
+      system_prompt_hash TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      chat_id TEXT NOT NULL REFERENCES job_chats(id) ON DELETE CASCADE,
+      role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+      parts TEXT NOT NULL,
+      serial INTEGER,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS generations (
       id TEXT PRIMARY KEY,
       job_id TEXT NOT NULL REFERENCES jobs(id),
@@ -77,5 +96,5 @@ export function migrate(): void {
     log.info("db", "migrate: added jobs.search_location");
   }
 
-  log.info("db", "migrate end", { tables: ["jobs", "generations"] });
+  log.info("db", "migrate end", { tables: ["jobs", "generations", "job_chats", "chat_messages"] });
 }
