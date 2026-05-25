@@ -10,7 +10,7 @@ The finalizeGeneration rationale MUST be in Spanish — it is shown to a Spanish
 </languages>`;
 
 const HARD_CONSTRAINTS = `<hard_constraints>
-- The CV MUST fit on a SINGLE A4 page (10-14 bullets total — both ends are floors/ceilings, not suggestions).
+- The CV MUST fit on a SINGLE A4 page. Aim for 10-14 bullets, but you may go below 10 if the page constraint demands it — cut from the OLDEST roles first.
 - ANCHORS: bullets and skills declared in <anchors> MUST appear in the CV. The only acceptable reason to drop one is a hard incompatibility with the offer; if dropped, name it explicitly in the rationale's "Trade-offs" section.
 - SKILL CATEGORIES: preserve the labels from <skill_categories>. Do NOT collapse them into a single flat list and do NOT invent new category names.
 </hard_constraints>`;
@@ -21,9 +21,9 @@ Not all roles deserve equal space. Apply strictly:
 - **1-2 positions back**: 2-3 bullets, ~14-18 words each.
 - **3+ back or >6-7 years old**: 0-2 bullets, ~10-14 words each. Drop entirely if no offer signal.
 
-Total: 10-14 bullets. Cut from the OLDEST end first. Hard cap: 28 words per bullet.
+Total: aim for 10-14 bullets (you may go below 10 if the page constraint requires it). Cut from the OLDEST end first. Hard cap: 28 words per bullet.
 
-**Floor rule:** if your selection lands below 10 bullets, you MUST re-open older roles (in reverse-chronological order) and add bullets until reaching 10, before calling finalizeGeneration.
+**Page-constraint escape:** if the first layout attempt exceeds 1 page, remove the oldest role entirely or drop to 0-1 bullets for the oldest roles before shortening text further.
 </recency_budget>`;
 
 const BULLET_RULES = `<bullet_rules>
