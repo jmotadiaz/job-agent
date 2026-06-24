@@ -1,5 +1,5 @@
 import { ToolLoopAgent, isLoopFinished } from "ai";
-import { deepinfra } from "@ai-sdk/deepinfra";
+import { opencodeGo } from "@/lib/agents/provider";
 import { log } from "@/lib/utils/log";
 import { makePatchExperienceTool } from "../../tools/patchExperience";
 import { makePatchSkillCategoriesTool } from "../../tools/patchSkillCategories";
@@ -12,7 +12,7 @@ export function createCvAgent(ctx: WriterRunContext) {
   log.info("writer/agent-cv", "CV agent created");
 
   return new ToolLoopAgent({
-    model: deepinfra("deepseek-ai/DeepSeek-V4-Flash"),
+    model: opencodeGo("deepseek-v4-flash"),
     instructions: CV_SYSTEM_PROMPT,
     tools: {
       patchExperience: makePatchExperienceTool(ctx),

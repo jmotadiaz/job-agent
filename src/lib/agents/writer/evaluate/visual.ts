@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { deepinfra } from "@ai-sdk/deepinfra";
+import { opencodeGo } from "@/lib/agents/provider";
 import { generateObject } from "ai";
 import { node } from "@/lib/agents/workflows/node";
 import { log } from "@/lib/utils/log";
@@ -40,7 +40,7 @@ function makeVisualEvaluator<TIn, TSolution extends CvSolution | CoverSolution>(
       return { accepted: false, issues: [issue] };
     }
 
-    const model = "google/gemma-4-31B-it";
+    const model = "mimo-v2.5";
 
     log.info(MODULE, `${artifactName} visual evaluation begin`, {
       model,
@@ -49,7 +49,7 @@ function makeVisualEvaluator<TIn, TSolution extends CvSolution | CoverSolution>(
     });
 
     const { object } = await generateObject({
-      model: deepinfra(model),
+      model: opencodeGo(model),
       schema: VisualVerdictSchema,
       messages: [
         {

@@ -1,5 +1,5 @@
 import { ToolLoopAgent, isLoopFinished } from "ai";
-import { deepinfra } from "@ai-sdk/deepinfra";
+import { opencodeGo } from "@/lib/agents/provider";
 import { log } from "@/lib/utils/log";
 import { makePatchCoverParagraphsTool } from "../../tools/patchCoverParagraphs";
 import { makeFinalizeGenerationTool } from "../../tools/finalizeGeneration";
@@ -10,7 +10,7 @@ export function createCoverAgent(ctx: WriterRunContext) {
   log.info("writer/agent-cover", "Cover agent created");
 
   return new ToolLoopAgent({
-    model: deepinfra("deepseek-ai/DeepSeek-V4-Flash"),
+    model: opencodeGo("deepseek-v4-flash"),
     instructions: COVER_SYSTEM_PROMPT,
     tools: {
       patchCoverParagraphs: makePatchCoverParagraphsTool(ctx),

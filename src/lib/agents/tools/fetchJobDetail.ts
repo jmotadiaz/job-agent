@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { deepinfra } from "@ai-sdk/deepinfra";
+import { opencodeGo } from "@/lib/agents/provider";
 import { generateObject } from "ai";
 import {
   openUrl,
@@ -94,11 +94,11 @@ export function makeFetchJobDetailTool(ctx: ScoutRunContext) {
           return { error: "Job description not found or too short", url };
         }
 
-        const llmModel = "google/gemma-4-26B-A4B-it";
+        const llmModel = "deepseek-v4-flash";
         const llmT0 = Date.now();
 
         const { object: extracted } = await generateObject({
-          model: deepinfra(llmModel),
+          model: opencodeGo(llmModel),
           schema: JobDetailsSchema,
           system: SYSTEM_PROMPT,
           prompt: fillPrompt(USER_PROMPT, {

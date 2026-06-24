@@ -1,8 +1,8 @@
 import { streamText } from "ai";
-import { createDeepInfra } from "@ai-sdk/deepinfra";
+import { createOpenAIGo } from "@/lib/agents/provider";
 import { ADVISOR_SYSTEM_PROMPT } from "./prompt";
 
-const MODEL_NAME = "deepseek-ai/DeepSeek-V4-Flash";
+const MODEL_NAME = "deepseek-v4-flash";
 
 export interface AdvisorInput {
   jobDescription: string;
@@ -12,7 +12,7 @@ export interface AdvisorInput {
 }
 
 export function runAdvisorChat(input: AdvisorInput) {
-  const deepinfra = createDeepInfra({ apiKey: process.env.DEEPINFRA_API_KEY! });
+  const deepinfra = createOpenAIGo();
 
   const systemPrompt = `${ADVISOR_SYSTEM_PROMPT}
 

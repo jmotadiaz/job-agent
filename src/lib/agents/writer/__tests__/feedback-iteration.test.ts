@@ -116,6 +116,11 @@ vi.mock("@ai-sdk/deepinfra", () => ({
   deepinfra: vi.fn((_model: string) => ({ modelId: _model })),
 }));
 
+vi.mock("@/lib/agents/provider", () => ({
+  opencodeGo: vi.fn((_model: string) => ({ modelId: _model })),
+  createOpenAIGo: vi.fn(() => (_model: string) => ({ modelId: _model })),
+}));
+
 vi.mock("ai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("ai")>();
   return {

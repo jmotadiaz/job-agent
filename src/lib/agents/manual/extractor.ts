@@ -1,4 +1,4 @@
-import { createDeepInfra } from "@ai-sdk/deepinfra";
+import { createOpenAIGo } from "@/lib/agents/provider";
 import { generateText } from "ai";
 import * as path from "node:path";
 import {
@@ -17,7 +17,7 @@ import {
 import { LOG_DIR } from "@/lib/runtime/paths";
 
 const MODULE = "manual/extractor";
-const LLM_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo";
+const LLM_MODEL = "deepseek-v4-flash";
 
 export interface ExtractedJob {
   title: string;
@@ -62,9 +62,7 @@ export async function extractJobFromUrl(url: string): Promise<ExtractedJob> {
 
         log.info(MODULE, "raw text extracted", { length: rawText.length });
 
-        const deepinfra = createDeepInfra({
-          apiKey: process.env.DEEPINFRA_API_KEY!,
-        });
+        const deepinfra = createOpenAIGo();
         const { text: description_md } = await generateText({
           model: deepinfra(LLM_MODEL),
           messages: [

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ai-sdk/deepinfra": "^2.0.45",
+    "@ai-sdk/openai-compatible": "^2.0.48",
     "@react-pdf/renderer": "^4.5.1",
     "agent-browser": "^0.26.0",
     "ai": "^6.0.168",
