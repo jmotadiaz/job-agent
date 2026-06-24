@@ -19,8 +19,11 @@ import { dismissBlockingOverlays } from "@/lib/agent-browser/exec";
 
 let tmpDir: string;
 let snapshotQueue: Array<{ snapshot: string; refs: Record<string, unknown> }>;
+let previousDisableRunLogs: string | undefined;
 
 beforeEach(() => {
+  previousDisableRunLogs = process.env.JOB_AGENT_DISABLE_RUN_LOGS;
+  process.env.JOB_AGENT_DISABLE_RUN_LOGS = "0";
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dismiss-test-"));
   snapshotQueue = [];
   mockExecFile.mockClear();
@@ -41,6 +44,11 @@ beforeEach(() => {
 
 afterEach(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
+  if (previousDisableRunLogs === undefined) {
+    delete process.env.JOB_AGENT_DISABLE_RUN_LOGS;
+  } else {
+    process.env.JOB_AGENT_DISABLE_RUN_LOGS = previousDisableRunLogs;
+  }
   vi.restoreAllMocks();
 });
 

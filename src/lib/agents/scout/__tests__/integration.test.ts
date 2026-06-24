@@ -67,21 +67,14 @@ vi.mock('../agent', () => ({
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { createScoutAgent } from '../agent';
 import { runScout } from '../orchestrator';
-let tmpDir: string;
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scout-int-test-'));
-  // Override the LOG_DIR used by the orchestrator by mocking the module path
-  // The orchestrator uses process.cwd() + '/log', so we need to intercept it.
-  // We'll use a more direct approach: after the run, look for the run directory
-  // under the actual log/ path, but clean it up afterward.
+  vi.clearAllMocks();
 });
 
 afterEach(() => {
-  fs.rmSync(tmpDir, { recursive: true, force: true });
   vi.clearAllMocks();
 });
 
@@ -136,25 +129,28 @@ describe('Scout integration (Orchestrator Test)', () => {
 
 describe('Scout run observability', () => {
   let logDir: string;
+  let previousDisableRunLogs: string | undefined;
 
   beforeEach(async () => {
+    previousDisableRunLogs = process.env.JOB_AGENT_DISABLE_RUN_LOGS;
+    process.env.JOB_AGENT_DISABLE_RUN_LOGS = '0';
+
     const { LOG_DIR } = await import('@/lib/runtime/paths');
     logDir = LOG_DIR;
+
+    if (!logDir.includes(`${path.sep}job-agent-vitest-`)) {
+      throw new Error(`Refusing to clean non-test LOG_DIR: ${logDir}`);
+    }
+
+    fs.rmSync(logDir, { recursive: true, force: true });
+    fs.mkdirSync(logDir, { recursive: true });
   });
 
   afterEach(() => {
-    // Clean up any run directories created during tests
-    if (fs.existsSync(logDir)) {
-      const entries = fs.readdirSync(logDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory() && entry.name.includes('test') || entry.name.match(/^\d{4}-\d{2}-\d{2}T/)) {
-          try {
-            fs.rmSync(path.join(logDir, entry.name), { recursive: true, force: true });
-          } catch {
-            // ignore cleanup errors
-          }
-        }
-      }
+    if (previousDisableRunLogs === undefined) {
+      delete process.env.JOB_AGENT_DISABLE_RUN_LOGS;
+    } else {
+      process.env.JOB_AGENT_DISABLE_RUN_LOGS = previousDisableRunLogs;
     }
   });
 

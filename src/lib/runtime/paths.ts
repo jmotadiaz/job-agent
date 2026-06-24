@@ -42,8 +42,11 @@ function findProjectRoot(): string {
 }
 
 export const PROJECT_ROOT = findProjectRoot();
-export const LOG_DIR = path.join(PROJECT_ROOT, "log");
-export const GENERATED_PDFS_DIR = path.join(PROJECT_ROOT, "generated-pdfs");
+export const LOG_DIR =
+  process.env.JOB_AGENT_LOG_DIR ?? path.join(PROJECT_ROOT, "log");
+export const GENERATED_PDFS_DIR =
+  process.env.JOB_AGENT_GENERATED_PDFS_DIR ??
+  path.join(PROJECT_ROOT, "generated-pdfs");
 export const DB_PATH = path.join(PROJECT_ROOT, "data", "job-agent.sqlite");
 export const PROFILE_PATH = path.join(PROJECT_ROOT, "profile.md");
 export const BLOCKED_COMPANIES_PATH = path.join(PROJECT_ROOT, "blocked-companies.md");

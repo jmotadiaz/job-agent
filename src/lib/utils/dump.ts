@@ -22,6 +22,10 @@ export function dump(label: string, content: unknown): string {
   const nn = nextSequenceNumber();
   const nnStr = String(nn).padStart(2, "0");
   const filename = `${nnStr}_${label}.json`;
+  if (!ctx.persistLogs) {
+    return filename;
+  }
+
   const filePath = path.join(ctx.runDir, "artifacts", filename);
 
   fs.writeFileSync(filePath, JSON.stringify(content, null, 2), "utf8");
@@ -49,6 +53,10 @@ export function dumpBinary(
   const nn = nextSequenceNumber();
   const nnStr = String(nn).padStart(2, "0");
   const filename = `${nnStr}_${label}.${extension}`;
+  if (!ctx.persistLogs) {
+    return filename;
+  }
+
   const filePath = path.join(ctx.runDir, "artifacts", filename);
 
   fs.writeFileSync(filePath, buffer);

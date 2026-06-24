@@ -10,6 +10,7 @@ export interface RunContext {
   runId: string;
   runDir: string;
   kind: RunKind;
+  persistLogs: boolean;
   sequenceCounter: { value: number };
   outcome: { value: string; result?: unknown };
 }
@@ -50,15 +51,17 @@ export function setRunOutcome(outcome: string, result?: unknown): void {
   }
 }
 
+function shouldPersistRunLogs(): boolean {
+  return process.env.JOB_AGENT_DISABLE_RUN_LOGS !== "1";
+}
+
 export async function runWithContext<T>(
-  opts: Omit<RunContext, "sequenceCounter" | "outcome"> & { input: Record<string, unknown> },
+  opts: Omit<RunContext, "sequenceCounter" | "outcome" | "persistLogs"> & { input: Record<string, unknown> },
   fn: () => Promise<T>,
 ): Promise<T> {
   const { input, ...ctxBase } = opts;
   const runDir = ctxBase.runDir;
   const artifactsDir = path.join(runDir, "artifacts");
-
-  fs.mkdirSync(artifactsDir, { recursive: true });
 
   const startedAt = new Date().toISOString();
   const metaPath = path.join(runDir, "meta.json");
@@ -68,10 +71,16 @@ export async function runWithContext<T>(
     startedAt,
     input,
   };
-  fs.writeFileSync(metaPath, JSON.stringify(initialMeta, null, 2), "utf8");
+  const persistLogs = shouldPersistRunLogs();
+
+  if (persistLogs) {
+    fs.mkdirSync(artifactsDir, { recursive: true });
+    fs.writeFileSync(metaPath, JSON.stringify(initialMeta, null, 2), "utf8");
+  }
 
   const ctx: RunContext = {
     ...ctxBase,
+    persistLogs,
     sequenceCounter: { value: 1 },
     outcome: { value: "ok" },
   };
@@ -87,7 +96,9 @@ export async function runWithContext<T>(
       outcome: ctx.outcome.value,
       result: ctx.outcome.result ?? null,
     };
-    fs.writeFileSync(metaPath, JSON.stringify(finalMeta, null, 2), "utf8");
+    if (persistLogs) {
+      fs.writeFileSync(metaPath, JSON.stringify(finalMeta, null, 2), "utf8");
+    }
     return result;
   } catch (err) {
     const finishedAt = new Date().toISOString();
@@ -99,7 +110,9 @@ export async function runWithContext<T>(
       outcome: "error",
       result: { message },
     };
-    fs.writeFileSync(metaPath, JSON.stringify(finalMeta, null, 2), "utf8");
+    if (persistLogs) {
+      fs.writeFileSync(metaPath, JSON.stringify(finalMeta, null, 2), "utf8");
+    }
     throw err;
   }
 }

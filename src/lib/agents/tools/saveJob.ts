@@ -3,26 +3,10 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import { insertJob } from "@/lib/db/jobs";
 import { log } from "@/lib/utils/log";
-import type { JobDetails, ScoutRunContext } from "../scout/types";
+import { detailsToMd } from "@/lib/agents/job-offer/markdown";
+import type { ScoutRunContext } from "../scout/types";
 
 const MODULE = "scout/tool";
-
-function detailsToMd(d: JobDetails): string {
-  return [
-    `- **Role:** ${d.role}`,
-    `- **Company:** ${d.company}`,
-    `- **Location:** ${d.location}`,
-    `- **Remote:** ${d.remote}`,
-    `- **Contract:** ${d.contract}`,
-    `- **Experience required:** ${d.experience_required}`,
-    `- **Role type:** ${d.role_type}`,
-    `- **Primary tech (required):** ${d.primary_tech.join(", ") || "Not specified"}`,
-    `- **Secondary tech (nice-to-have):** ${d.secondary_tech.join(", ") || "Not specified"}`,
-    `- **Key responsibilities:** ${d.key_responsibilities.join("; ") || "Not specified"}`,
-    `- **Salary:** ${d.salary}`,
-    `- **Hard blockers:** ${Array.isArray(d.hard_blockers) ? d.hard_blockers.join("; ") || "None" : d.hard_blockers}`,
-  ].join("\n");
-}
 
 export function makeSaveJobTool(ctx: ScoutRunContext) {
   return tool({

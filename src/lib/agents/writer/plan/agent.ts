@@ -21,7 +21,11 @@ const PlanSchema = z.object({
   cv: z.object({
     bullets: z.array(
       z.object({
-        originalText: z.string(),
+        originalText: z
+          .string()
+          .describe(
+            "Evidence Card title plus source field(s) used for this planned bullet; do not put Generation Guidance or Boundaries here.",
+          ),
         company: z.string(),
         role: z.string(),
         period: z.string(),
@@ -62,7 +66,11 @@ const PlanSchema = z.object({
   cover: z.object({
     outline: z.object({
       hook: z.string(),
-      evidence: z.array(z.string()),
+      evidence: z
+        .array(z.string())
+        .describe(
+          "One plan item per evidence paragraph. Each item should name the Evidence Card and the job-offer quote/requirement it supports.",
+        ),
       close: z.string(),
       toneNote: z
         .string()
@@ -73,7 +81,6 @@ const PlanSchema = z.object({
   }),
   rationaleDraft: z.string(),
 });
-
 
 export interface PlanInput extends WriterInput {
   jobDescription: string;
@@ -106,7 +113,7 @@ export interface PlanInput extends WriterInput {
 }
 
 export const planNode = node(async (input: PlanInput): Promise<Plan> => {
-  const model = "deepseek-v4-flash";
+  const model = "deepseek-v4-pro";
   const t0 = Date.now();
 
   let prompt = `Create a detailed execution plan for tailoring a CV and cover letter to the following job offer.
@@ -160,7 +167,10 @@ ${input.profileContent}
     }
   }
 
-  log.info(MODULE, "plan generation begin", { model, promptLen: prompt.length });
+  log.info(MODULE, "plan generation begin", {
+    model,
+    promptLen: prompt.length,
+  });
 
   try {
     const { object } = await generateObject({
@@ -169,7 +179,6 @@ ${input.profileContent}
       system: PLAN_SYSTEM_PROMPT,
       prompt,
     });
-
 
     log.info(MODULE, "plan generation end", {
       bulletCount: object.cv.bullets.length,
@@ -198,4 +207,3 @@ ${input.profileContent}
     throw err;
   }
 });
-

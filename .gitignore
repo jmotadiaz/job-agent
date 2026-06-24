@@ -42,6 +42,7 @@ next-env.d.ts
 
 # job-agent
 profile.md
+profile.md.bk*
 blocked-companies.md
 data/
 .agent-browser/

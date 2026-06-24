@@ -13,13 +13,21 @@ import {
 } from "../run-context";
 
 let tmpDir: string;
+let previousDisableRunLogs: string | undefined;
 
 beforeEach(() => {
+  previousDisableRunLogs = process.env.JOB_AGENT_DISABLE_RUN_LOGS;
+  process.env.JOB_AGENT_DISABLE_RUN_LOGS = "0";
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "run-ctx-test-"));
 });
 
 afterEach(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
+  if (previousDisableRunLogs === undefined) {
+    delete process.env.JOB_AGENT_DISABLE_RUN_LOGS;
+  } else {
+    process.env.JOB_AGENT_DISABLE_RUN_LOGS = previousDisableRunLogs;
+  }
 });
 
 describe("makeRunId", () => {

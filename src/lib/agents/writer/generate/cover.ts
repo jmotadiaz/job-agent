@@ -54,7 +54,7 @@ ${profileContent}
 <plan>
 Hook: ${plan.outline.hook}
 
-Evidence paragraphs (${plan.outline.evidence.length} total):
+Evidence-card paragraph plans (${plan.outline.evidence.length} total):
 `
       : `Revise the cover letter for the following job offer. Apply the user feedback to the existing cover letter below.
 

@@ -17,7 +17,7 @@ function emit(level: Level, module: string, event: string, payload?: unknown): v
   }
 
   const ctx = getCurrentRunContext();
-  if (ctx) {
+  if (ctx?.persistLogs) {
     try {
       const timelinePath = path.join(ctx.runDir, "timeline.jsonl");
       const entry = JSON.stringify({ ts, level, module, event, payload });

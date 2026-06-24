@@ -1,6 +1,7 @@
 // Plan types — produced by the Plan Node (decomposer)
 
 export interface BulletPlan {
+  /** Evidence Card title + source field(s), or the legacy source bullet text. */
   originalText: string;
   company: string;
   role: string;
@@ -16,7 +17,7 @@ export interface SkillCategoryPlan {
 
 export interface CoverOutline {
   hook: string; // one-sentence hook idea
-  evidence: string[]; // one per evidence paragraph
+  evidence: string[]; // one Evidence Card-grounded plan item per evidence paragraph
   close: string; // one-sentence close idea
   toneNote?: string;
 }

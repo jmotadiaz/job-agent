@@ -32,7 +32,7 @@ export function appendAgentStep(
   },
 ): void {
   const ctx = getCurrentRunContext();
-  if (!ctx) return;
+  if (!ctx?.persistLogs) return;
 
   const record: AgentStepRecord = {
     ts: new Date().toISOString(),

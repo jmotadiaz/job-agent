@@ -110,18 +110,35 @@ export interface AgentBrowserResult {
   error?: string;
 }
 
+interface RunAgentBrowserOptions {
+  timeoutMs?: number;
+  optional?: boolean;
+}
+
+function normalizeRunOptions(
+  optionsOrTimeoutMs?: number | RunAgentBrowserOptions,
+): RunAgentBrowserOptions {
+  if (typeof optionsOrTimeoutMs === "number") {
+    return { timeoutMs: optionsOrTimeoutMs };
+  }
+  return optionsOrTimeoutMs ?? {};
+}
+
 export async function runAgentBrowser(
   args: string[],
   session?: string,
-  timeoutMs?: number,
+  optionsOrTimeoutMs?: number | RunAgentBrowserOptions,
 ): Promise<AgentBrowserResult> {
+  const options = normalizeRunOptions(optionsOrTimeoutMs);
   const allArgs = [...(session ? ["--session", session] : []), ...args, "--json"];
   // Redact any auth tokens that might appear in URLs
   const safeArgs = allArgs.map((a) =>
     a.startsWith("http") ? a.split("?")[0] : a,
   );
   const t0 = Date.now();
-  log.info(MODULE, "exec begin", { args: safeArgs });
+  if (!options.optional) {
+    log.info(MODULE, "exec begin", { args: safeArgs });
+  }
 
   let stdout = "";
   let stderr = "";
@@ -130,7 +147,7 @@ export async function runAgentBrowser(
     const cmdInfo = resolveAgentBrowserCommand();
     const cmdArgs = [...cmdInfo.args, ...allArgs];
     const result = await execFileAsync(cmdInfo.command, cmdArgs, {
-      timeout: timeoutMs ?? 30_000,
+      timeout: options.timeoutMs ?? 30_000,
       maxBuffer: 10 * 1024 * 1024,
     });
     stdout = result.stdout;
@@ -149,6 +166,13 @@ export async function runAgentBrowser(
     // Run doctor --fix to clean up and retry once.
     let autoHealed = false;
     const stderrTrimmed = (e.stderr ?? "").trim();
+    if (options.optional && (e.code === 1 || e.code === "1") && stderrTrimmed.length === 0) {
+      return {
+        success: false,
+        error: e.message ?? "optional agent-browser command failed",
+      };
+    }
+
     if ((e.code === 1 || e.code === "1") && stderrTrimmed.length === 0) {
       log.warn(MODULE, "exec failed (empty stderr, exit=1), running doctor --fix and retrying", {
         exitCode: e.code,
@@ -157,7 +181,7 @@ export async function runAgentBrowser(
       await runDoctor();
       try {
         const retryResult = await execFileAsync(cmdInfo.command, cmdArgs, {
-          timeout: timeoutMs ?? 30_000,
+          timeout: options.timeoutMs ?? 30_000,
           maxBuffer: 10 * 1024 * 1024,
         });
         stdout = retryResult.stdout;
@@ -218,6 +242,9 @@ export async function runAgentBrowser(
   try {
     const parsed = JSON.parse(stdout);
     if (!parsed.success) {
+      if (options.optional) {
+        return parsed;
+      }
       log.warn(MODULE, "exec: success=false", {
         args: safeArgs,
         error: parsed.error,
@@ -229,10 +256,18 @@ export async function runAgentBrowser(
         stderr,
       );
     }
-    log.info(MODULE, "exec end", { args: safeArgs, duration });
+    if (!options.optional) {
+      log.info(MODULE, "exec end", { args: safeArgs, duration });
+    }
     return parsed;
   } catch (parseErr) {
     if (parseErr instanceof AgentBrowserError) throw parseErr;
+    if (options.optional) {
+      return {
+        success: false,
+        error: `Failed to parse agent-browser output: ${stdout}`,
+      };
+    }
     log.error(MODULE, "exec parse error", {
       args: safeArgs,
       stdout: stdout.slice(0, 200),
@@ -280,8 +315,17 @@ export async function snapshot(
   return runAgentBrowser(args, session);
 }
 
-export async function getText(selector: string, session?: string): Promise<string> {
-  const result = await runAgentBrowser(["get", "text", selector], session);
+export async function getText(
+  selector: string,
+  session?: string,
+  options?: { optional?: boolean },
+): Promise<string> {
+  const result = await runAgentBrowser(["get", "text", selector], session, {
+    optional: options?.optional,
+  });
+  if (!result.success && options?.optional) {
+    return "";
+  }
   const data = result.data as { text?: string } | undefined;
   return data?.text ?? "";
 }

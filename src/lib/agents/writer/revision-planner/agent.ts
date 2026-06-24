@@ -3,8 +3,11 @@ import { opencodeGo } from "@/lib/agents/provider";
 import { generateObject } from "ai";
 import { node } from "@/lib/agents/workflows/node";
 import { log } from "@/lib/utils/log";
-import { REVISION_PLANNER_SYSTEM_PROMPT } from "./prompt";
-import type { ExperienceEntry, SkillCategoryEntry } from "../types";
+import {
+  buildRevisionPlannerPrompt,
+  REVISION_PLANNER_SYSTEM_PROMPT,
+  type RevisionPlannerPromptInput,
+} from "./prompt";
 
 const MODULE = "writer/revision-planner";
 
@@ -14,15 +17,7 @@ const RevisionDecisionSchema = z.object({
   rationale: z.string().describe("Brief justification of why each document needs editing or not"),
 });
 
-export interface RevisionPlannerInput {
-  feedbackComment?: string | null;
-  feedbackRating?: number | null;
-  parentCv?: {
-    experience: ExperienceEntry[];
-    skillCategories: SkillCategoryEntry[];
-  } | null;
-  parentCoverParagraphs?: string[] | null;
-}
+export type RevisionPlannerInput = RevisionPlannerPromptInput;
 
 export interface RevisionDecision {
   editCv: boolean;
@@ -35,28 +30,7 @@ export const revisionPlannerNode = node(
     const model = "deepseek-v4-flash";
     const t0 = Date.now();
 
-    let prompt = `The user has reviewed a previously generated CV and cover letter pair. Decide what needs to be re-edited.\n\n`;
-
-    if (input.feedbackRating) {
-      prompt += `Rating: ${input.feedbackRating}/5\n`;
-    }
-
-    if (input.feedbackComment) {
-      prompt += `User comment: "${input.feedbackComment}"\n`;
-    } else {
-      prompt += `User comment: (none)\n`;
-    }
-
-    if (input.parentCv) {
-      const bulletCount = input.parentCv.experience.reduce(
-        (sum, e) => sum + e.bullets.length, 0,
-      );
-      prompt += `\nParent CV: ${input.parentCv.experience.length} experiences, ${bulletCount} bullets, ${input.parentCv.skillCategories.length} skill categories.\n`;
-    }
-
-    if (input.parentCoverParagraphs) {
-      prompt += `Parent cover letter: ${input.parentCoverParagraphs.length} paragraphs.\n`;
-    }
+    const prompt = buildRevisionPlannerPrompt(input);
 
     log.info(MODULE, "revision planner begin", {
       model,

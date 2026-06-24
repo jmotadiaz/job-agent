@@ -1,49 +1,13 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { opencodeGo } from "@/lib/agents/provider";
-import { generateObject } from "ai";
 import {
-  openUrl,
-  waitForSelector,
-  getText,
-  closeSession,
-  dismissBlockingOverlays,
-} from "@/lib/agent-browser/exec";
+  JobOfferExtractionError,
+  extractJobOfferFromUrl,
+} from "@/lib/agents/job-offer/extractor";
+import { closeSession } from "@/lib/agent-browser/exec";
 import { log } from "@/lib/utils/log";
 import { dump } from "@/lib/utils/dump";
-import { fillPrompt } from "@/lib/utils/prompt";
-import { JobDetailsSchema } from "../scout/types";
 import type { JobSummary, ScoutRunContext } from "../scout/types";
-
-// LinkedIn job detail page loaded indicator — change this if LinkedIn updates their markup.
-// Monitor trace durations to detect breakage and adjust the timeout or selector accordingly.
-const PAGE_LOADED_SELECTOR = ".description__text";
-
-const SYSTEM_PROMPT = `You are a job description parser. Extract structured data from job postings and return it as a JSON object.
-
-Field definitions:
-- role: the exact job title as written in the posting
-- company: the hiring company name
-- location: city and/or country; include whether it is remote, hybrid or onsite if stated
-- remote: one of "yes", "no", or "hybrid"
-- contract: one of "full-time", "part-time", "contract", or "freelance"
-- experience_required: minimum years or experience level. Extract explicit ranges like "5+ years", "3-5 years", or descriptive phrases like "extensive experience", "senior-level", "10+ years". If no experience is mentioned at all, use "Not specified".
-- role_type: one of "frontend", "backend", "fullstack", or "other"
-- primary_tech: list of languages, frameworks and tools that are explicitly required or listed as core requirements
-- secondary_tech: list of technologies mentioned as "nice-to-have", "bonus", "plus", "familiarity with", "experience with X is a plus", or listed in a separate "preferred qualifications" section. If no such items exist, use an empty array.
-- key_responsibilities: 2 to 3 short phrases describing the main duties
-- salary: salary range or compensation package if mentioned, otherwise "Not specified"
-- hard_blockers: ONLY include concrete disqualifying restrictions: mandatory spoken languages the user may not know, location restrictions (e.g., "must be based in X country"), or highly niche required tech with no alternative. Do NOT include general requirements like "strong communication skills", "team player", "deep expertise", or "extensive knowledge" — those are standard job requirements, not blockers.
-
-Rules:
-- Be literal — extract only what is written, never infer or invent.
-- Use "Not specified" for missing string fields.
-- Use empty arrays for missing list fields (including hard_blockers).
-- Distinguish carefully between required skills (primary_tech) and preferred/bonus skills (secondary_tech).`;
-
-const USER_PROMPT = `Extract the structured fields from the following job description:
-
-{{jobDescription}}`;
 
 const MODULE = "scout/tool";
 
@@ -68,69 +32,46 @@ export function makeFetchJobDetailTool(ctx: ScoutRunContext) {
       });
 
       try {
-        await openUrl(url, session);
-        await waitForSelector(PAGE_LOADED_SELECTOR, session);
-
-        try {
-          await dismissBlockingOverlays(session);
-        } catch (e) {
-          log.warn(MODULE, "fetchJobDetail: dismiss overlay failed", {
-            message: e instanceof Error ? e.message : String(e),
-          });
-        }
-
-        const rawText =
-          (await getText(".description__text", session)) ||
-          (await getText('[class*="description"]', session)) ||
-          (await getText("main", session));
-
-        const raw_len = rawText.length;
-
-        if (raw_len < 50) {
-          log.warn(MODULE, "fetchJobDetail: description too short", {
-            url,
-            raw_len,
-          });
-          return { error: "Job description not found or too short", url };
-        }
-
-        const llmModel = "deepseek-v4-flash";
-        const llmT0 = Date.now();
-
-        const { object: extracted } = await generateObject({
-          model: opencodeGo(llmModel),
-          schema: JobDetailsSchema,
-          system: SYSTEM_PROMPT,
-          prompt: fillPrompt(USER_PROMPT, {
-            jobDescription: rawText.slice(0, 8000),
-          }),
-        });
-        log.info(MODULE, "fetchJobDetail llm call", {
-          model: llmModel,
-          duration: Date.now() - llmT0,
+        const extracted = await extractJobOfferFromUrl(url, session, {
+          logModule: MODULE,
         });
 
         const summary: JobSummary = {
           external_id,
           url,
-          title: extracted.role,
+          title: extracted.title,
           company: extracted.company,
           location: extracted.location,
-          details: extracted,
-          raw_len,
+          details: extracted.details,
+          raw_len: extracted.rawLen,
         };
         ctx.reviewedJobs.set(external_id, summary);
-        ctx.rawTextByExternalId.set(external_id, rawText);
+        ctx.rawTextByExternalId.set(external_id, extracted.rawText);
 
         log.info(MODULE, "fetchJobDetail end", {
           external_id,
-          raw_len,
+          raw_len: extracted.rawLen,
           details: summary.details,
           duration: Date.now() - t0,
         });
-        dump("fetchJobDetail", { rawText });
+        dump("fetchJobDetail", { rawText: extracted.rawText });
         return summary;
       } catch (err: unknown) {
+        if (err instanceof JobOfferExtractionError) {
+          log.warn(MODULE, "fetchJobDetail: extraction failed", {
+            url,
+            raw_len: err.pageText?.descriptionText.length,
+            title: err.pageText?.title,
+            company: err.pageText?.company,
+            location: err.pageText?.location,
+            message: err.message,
+          });
+          return {
+            error: err.message,
+            url,
+          };
+        }
+
         const msg = err instanceof Error ? err.message : String(err);
         log.error(MODULE, "fetchJobDetail error", {
           url,

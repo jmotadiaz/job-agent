@@ -86,10 +86,10 @@ ${profileContent}
     }
 
     if (plan) {
-      prompt += `\nSelected bullets (${plan.bullets.length} total):\n`;
+      prompt += `\nSelected evidence-derived bullet plans (${plan.bullets.length} total):\n`;
       for (const b of plan.bullets) {
         const pr = priorityRequirements[b.priorityRequirementIndex - 1];
-        prompt += `- [${b.company}, ${b.role}, ${b.period}] ${b.originalText}\n`;
+        prompt += `- [${b.company}, ${b.role}, ${b.period}] Source evidence: ${b.originalText}\n`;
         if (b.rewrittenText) {
           prompt += `  Suggested rewrite: ${b.rewrittenText}\n`;
         }

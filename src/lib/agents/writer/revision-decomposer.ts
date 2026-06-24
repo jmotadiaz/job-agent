@@ -67,6 +67,9 @@ export const revisionDecomposerNode = node(
     const decision = await revisionPlannerNode.execute({
       feedbackComment: planIn.feedbackComment,
       feedbackRating: planIn.feedbackRating,
+      previousPlan: parentRationale
+        ? { priorityRequirements, rationaleDraft }
+        : null,
       parentCv:
         parentExperience && parentSkillCategories
           ? { experience: parentExperience, skillCategories: parentSkillCategories }

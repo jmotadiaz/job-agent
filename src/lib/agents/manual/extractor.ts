@@ -1,13 +1,5 @@
-import { createOpenAIGo } from "@/lib/agents/provider";
-import { generateText } from "ai";
 import * as path from "node:path";
-import {
-  openUrl,
-  waitLoad,
-  getText,
-  closeSession,
-  dismissBlockingOverlays,
-} from "@/lib/agent-browser/exec";
+import { closeSession } from "@/lib/agent-browser/exec";
 import { log } from "@/lib/utils/log";
 import { dump } from "@/lib/utils/dump";
 import {
@@ -15,9 +7,9 @@ import {
   makeRunId,
 } from "@/lib/runtime/run-context";
 import { LOG_DIR } from "@/lib/runtime/paths";
+import { extractJobOfferFromUrl } from "@/lib/agents/job-offer/extractor";
 
 const MODULE = "manual/extractor";
-const LLM_MODEL = "deepseek-v4-flash";
 
 export interface ExtractedJob {
   title: string;
@@ -38,77 +30,36 @@ export async function extractJobFromUrl(url: string): Promise<ExtractedJob> {
       log.info(MODULE, "begin", { url, session });
 
       try {
-        await openUrl(url, session);
-        await waitLoad(session);
-
-        try {
-          await dismissBlockingOverlays(session);
-        } catch (e) {
-          log.warn(MODULE, "dismiss overlay failed", {
-            message: e instanceof Error ? e.message : String(e),
-          });
-        }
-
-        const rawText =
-          (await getText(".description__text", session)) ||
-          (await getText('[class*="description"]', session)) ||
-          (await getText("main", session));
-
-        if (rawText.length < 50) {
-          throw new Error(
-            "Could not extract job description — page may require login or is unsupported",
-          );
-        }
-
-        log.info(MODULE, "raw text extracted", { length: rawText.length });
-
-        const deepinfra = createOpenAIGo();
-        const { text: description_md } = await generateText({
-          model: deepinfra(LLM_MODEL),
-          messages: [
-            {
-              role: "user",
-              content: `Extract the following fields from this job description. Be concise and literal — do not infer or invent. If a field is not mentioned, write "Not specified". Return each field as a markdown list item exactly as shown below.
-
-- Role: [job title]
-- Company: [company name]
-- Location: [city/country and whether remote/hybrid/onsite]
-- Remote: [yes / no / hybrid]
-- Contract: [full-time / part-time / contract / freelance]
-- Experience required: [minimum years]
-- Role type: [frontend / backend / fullstack / other]
-- Primary tech (required): [main languages, frameworks, tools explicitly required]
-- Secondary tech (nice-to-have): [technologies listed as optional or bonus]
-- Key responsibilities: [2-3 short phrases separated by semicolons]
-- Salary: [salary range or compensation if mentioned, otherwise "Not specified"]
-- Hard blockers: [location restrictions, mandatory languages, specific niche tech with no alternative]
-
-Job description:
-${rawText.slice(0, 8000)}`,
-            },
-          ],
-          maxOutputTokens: 512,
+        const extracted = await extractJobOfferFromUrl(url, session, {
+          firstWaitMs: 15_000,
+          retryWaitMs: 10_000,
+          logModule: MODULE,
         });
-
-        // Parse title/company/location from the LLM output
-        const parse = (field: string) => {
-          const m = description_md.match(
-            new RegExp(`^- ${field}:\\s*([^\\n]+)`, "m"),
-          );
-          const v = m?.[1]?.trim() ?? "";
-          return v === "Not specified" || v === "" ? "" : v;
-        };
-
-        const title = parse("Role");
-        const company = parse("Company");
-        const location = parse("Location");
+        const title = hideNotSpecified(extracted.title);
+        const company = hideNotSpecified(extracted.company);
+        const location = hideNotSpecified(extracted.location);
 
         log.info(MODULE, "end", { title, company, location });
-        dump("extracted", { rawText });
-        return { title, company, location, description_md, raw_text: rawText };
+        dump("extracted", {
+          title,
+          company,
+          location,
+          rawText: extracted.rawText,
+        });
+        return {
+          title,
+          company,
+          location,
+          description_md: extracted.descriptionMd,
+          raw_text: extracted.rawText,
+        };
       } finally {
         await closeSession(session);
       }
     },
   );
+}
+
+function hideNotSpecified(value: string): string {
+  return value === "Not specified" ? "" : value;
 }
