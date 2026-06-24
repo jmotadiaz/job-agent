@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { deepinfra } from "@ai-sdk/deepinfra";
+import { opencodeGo } from "@/lib/agents/provider";
 import { generateObject } from "ai";
 import { node } from "@/lib/agents/workflows/node";
 import { log } from "@/lib/utils/log";
@@ -27,7 +27,7 @@ function makeWritingEvaluator<
 ) {
   return node(async (evalInput: EvaluatorInput<TIn, TSolution, CompositeFeedback>): Promise<WritingFeedback> => {
     const { input, solution } = evalInput;
-    const model = "deepseek-ai/DeepSeek-V4-Flash";
+    const model = "deepseek-v4-flash";
     const t0 = Date.now();
 
     const textBundle = extractText(solution);
@@ -46,7 +46,7 @@ function makeWritingEvaluator<
     });
 
     const { object } = await generateObject({
-      model: deepinfra(model),
+      model: opencodeGo(model),
       schema: WritingVerdictSchema,
       system: systemPrompt,
       prompt: userPrompt,

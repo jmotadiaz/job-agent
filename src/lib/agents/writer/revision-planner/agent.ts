@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { deepinfra } from "@ai-sdk/deepinfra";
+import { opencodeGo } from "@/lib/agents/provider";
 import { generateObject } from "ai";
 import { node } from "@/lib/agents/workflows/node";
 import { log } from "@/lib/utils/log";
@@ -32,7 +32,7 @@ export interface RevisionDecision {
 
 export const revisionPlannerNode = node(
   async (input: RevisionPlannerInput): Promise<RevisionDecision> => {
-    const model = "deepseek-ai/DeepSeek-V4-Flash";
+    const model = "deepseek-v4-flash";
     const t0 = Date.now();
 
     let prompt = `The user has reviewed a previously generated CV and cover letter pair. Decide what needs to be re-edited.\n\n`;
@@ -66,7 +66,7 @@ export const revisionPlannerNode = node(
     });
 
     const { object } = await generateObject({
-      model: deepinfra(model),
+      model: opencodeGo(model),
       schema: RevisionDecisionSchema,
       system: REVISION_PLANNER_SYSTEM_PROMPT,
       prompt,

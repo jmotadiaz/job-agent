@@ -1,12 +1,12 @@
 import { ToolLoopAgent, isLoopFinished } from "ai";
-import { createDeepInfra } from "@ai-sdk/deepinfra";
+import { createOpenAIGo } from "@/lib/agents/provider";
 import { makeScoutTools, type ScoutRunContext } from "./tools";
 import { log } from "@/lib/utils/log";
 import type { SearchConfig } from "@/lib/profile/parse";
 import { INSTRUCTIONS, SCOUT_MAX_CANDIDATES, SCOUT_MAX_MATCHES } from "./prompt";
 
 export function createScoutAgent(search: SearchConfig, activeQuery: string, activeLocation: string | null) {
-  const deepinfra = createDeepInfra({ apiKey: process.env.DEEPINFRA_API_KEY! });
+  const deepinfra = createOpenAIGo();
 
   const ctx: ScoutRunContext = {
     search,
@@ -23,7 +23,7 @@ export function createScoutAgent(search: SearchConfig, activeQuery: string, acti
   const tools = makeScoutTools(ctx);
 
   const agent = new ToolLoopAgent({
-    model: deepinfra("deepseek-ai/DeepSeek-V4-Flash"),
+    model: deepinfra("deepseek-v4-flash"),
     instructions: INSTRUCTIONS,
     tools,
     stopWhen: (state) => {

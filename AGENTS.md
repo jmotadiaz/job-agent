@@ -1,10 +1,10 @@
 This is **Job Scout** — a Next.js app that automates job searching and tailored document generation (CV + cover letter as PDFs).
 
 ```bash
-npm run dev       # Start Next.js dev server (runs DB migrations via instrumentation.ts)
-npm run build     # Production build
-npm run lint      # ESLint
-npm test          # Run Vitest tests
+pnpm dev          # Start Next.js dev server (runs DB migrations via instrumentation.ts)
+pnpm build        # Production build
+pnpm lint         # ESLint
+pnpm test         # Run Vitest tests
 ```
 
 ## Project intent
@@ -37,10 +37,10 @@ This project uses a progressive disclosure strategy for agent instructions. Plac
 
 Before declaring a task finished, verify the codebase is still healthy:
 
-1. `npm run lint` — must pass (no new errors introduced).
-2. `npm run build` — must compile successfully.
+1. `pnpm lint` — must pass (no new errors introduced).
+2. `pnpm build` — must compile successfully.
 3. If you added or changed logic covered by existing tests, run them and ensure they pass.
-   - Run all tests: `npm test`
-   - Run specific tests: `npm test -- <path>` (e.g. `npm test -- src/lib/agent-browser/__tests__/smoke.test.ts`)
+   - Run all tests: `pnpm test`
+   - Run specific tests: `pnpm test -- <path>` (e.g. `pnpm test -- src/lib/agent-browser/__tests__/smoke.test.ts`)
 
 Do not skip these steps. If lint or build fails, fix the issues before finishing.

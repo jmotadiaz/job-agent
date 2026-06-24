@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'job-agent',
-      script: 'npm',
-      args: 'start',
+      script: 'pnpm',
+      args: 'start -p 3010',
       env_file: '.env',
       instances: 1,
       exec_mode: 'fork',

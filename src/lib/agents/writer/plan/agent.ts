@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { deepinfra } from "@ai-sdk/deepinfra";
+import { opencodeGo } from "@/lib/agents/provider";
 import { generateObject, NoObjectGeneratedError } from "ai";
 import { node } from "@/lib/agents/workflows/node";
 import { log } from "@/lib/utils/log";
@@ -106,7 +106,7 @@ export interface PlanInput extends WriterInput {
 }
 
 export const planNode = node(async (input: PlanInput): Promise<Plan> => {
-  const model = "deepseek-ai/DeepSeek-V4-Flash";
+  const model = "deepseek-v4-flash";
   const t0 = Date.now();
 
   let prompt = `Create a detailed execution plan for tailoring a CV and cover letter to the following job offer.
@@ -164,7 +164,7 @@ ${input.profileContent}
 
   try {
     const { object } = await generateObject({
-      model: deepinfra(model),
+      model: opencodeGo(model),
       schema: PlanSchema,
       system: PLAN_SYSTEM_PROMPT,
       prompt,
