@@ -1,5 +1,5 @@
 allowBuilds:
   agent-browser: true
   better-sqlite3: true
-  sharp: false
-  unrs-resolver: false
+  sharp: true
+  unrs-resolver: true
